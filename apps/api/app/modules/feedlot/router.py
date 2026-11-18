@@ -172,6 +172,8 @@ async def import_worksheet(
     include_costing: bool = Query(True),
     post_to_finance: bool = Query(True, description="Also record the NEW sales and purchases in Finance (each at most once)."),
     production_cycle_id: uuid.UUID | None = Query(None, description="Put the imported batches, sale batches and costing documents into this production cycle."),
+    move_batches: bool = Query(True, description="An animal whose tag the worksheet lists under a different batch is moved to that batch (the worksheet is the truth). False = leave it alone and report it."),
+    reconcile: bool = Query(True, description="Correct weights the worksheet changed on animals that already exist (wrong imported weights are voided, the right ones added). False = only add new dates, as before."),
     user: User = Depends(require_permission("feedlot.manage")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -183,7 +185,8 @@ async def import_worksheet(
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Workbook is larger than 15 MB")
     return await run_import(db, user.organization_id, user.id, content, farm_id=farm_id,
                             dry_run=dry_run, include_costing=include_costing, post_to_finance=post_to_finance,
-                            production_cycle_id=production_cycle_id)
+                            production_cycle_id=production_cycle_id, reconcile=reconcile, source="upload",
+                            filename=file.filename, move_batches=move_batches)
 
 
 class WorksheetSyncIn(BaseModel):
@@ -217,6 +220,56 @@ async def worksheet_sync_run(dry_run: bool = Query(False, description="Preview w
     """Import the Google Sheet now (the same thing the daily automatic run does)."""
     from app.modules.feedlot import worksheet_sync
     return await worksheet_sync.run_sync(db, user.organization_id, dry_run=dry_run, force=force)
+
+
+@router.get("/worksheet/versions")
+async def worksheet_versions_list(user: User = Depends(require_permission("feedlot.manage")), db: AsyncSession = Depends(get_db)):
+    """Every worksheet that was imported or restored, newest first."""
+    from app.modules.feedlot import worksheet_versions
+    return await worksheet_versions.list_versions(db, user.organization_id)
+
+
+@router.get("/worksheet/versions/{version_id}/download")
+async def worksheet_version_download(version_id: uuid.UUID, user: User = Depends(require_permission("feedlot.manage")),
+                                     db: AsyncSession = Depends(get_db)):
+    from fastapi.responses import Response
+    from app.modules.feedlot import worksheet_versions
+    v, content = await worksheet_versions.get_file(db, user.organization_id, version_id)
+    return Response(content, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="Worksheet_version_{v.version_no}.xlsx"'})
+
+
+@router.post("/worksheet/versions/{version_id}/restore")
+async def worksheet_version_restore(version_id: uuid.UUID,
+                                    dry_run: bool = Query(True, description="Preview only: nothing is saved. Set false to restore."),
+                                    user: User = Depends(require_permission("feedlot.manage")), db: AsyncSession = Depends(get_db)):
+    """Put the weights on existing animals back to what an earlier worksheet said. Does not delete animals, sales or
+    Finance entries. Recorded as a new version, so it can be undone by restoring the version before it."""
+    from app.modules.feedlot import worksheet_versions
+    return await worksheet_versions.restore_version(db, user.organization_id, user.id, version_id, dry_run=dry_run)
+
+
+@router.post("/worksheet/unpost")
+async def worksheet_unpost(production_cycle_id: uuid.UUID | None = Query(None, description="Only this cycle; omit for the whole organisation."),
+                           dry_run: bool = Query(True, description="Preview only: nothing is saved."),
+                           confirm: str | None = Query(None, description="Must be UNPOST to apply."),
+                           user: User = Depends(require_permission("feedlot.manage")), db: AsyncSession = Depends(get_db)):
+    """Set aside every weight the worksheet imported. The farm's own entries stay. Reversible by restoring a version."""
+    from app.modules.feedlot import worksheet_versions
+    return await worksheet_versions.unpost_weights(db, user.organization_id, user.id, cycle_id=production_cycle_id,
+                                                   dry_run=dry_run, confirm=confirm)
+
+
+@router.post("/finance-align")
+async def finance_align(production_cycle_id: uuid.UUID | None = Query(None, description="Only this cycle; omit for the whole organisation."),
+                        dry_run: bool = Query(True, description="Preview only: nothing is posted."),
+                        dating: str = Query("original", description="original = correct each month; today = one entry dated today."),
+                        user: User = Depends(require_permission("feedlot.manage")), db: AsyncSession = Depends(get_db)):
+    """Bring the Finance ledger's livestock PURCHASES in line with the worksheet's batches by adding adjusting entries
+    (the ledger is append-only, so nothing is edited). Run after an import that moved animals between batches."""
+    from app.modules.feedlot import finance_align_sync
+    return await finance_align_sync.align_purchases(db, user.organization_id, user.id, cycle_id=production_cycle_id,
+                                                    dry_run=dry_run, dating=dating)
 
 
 @router.post("/ledger-sync")

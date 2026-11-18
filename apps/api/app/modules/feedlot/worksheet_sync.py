@@ -135,7 +135,8 @@ async def run_sync(db: AsyncSession, org_id: uuid.UUID, *, dry_run: bool = False
             if not c.configured_by:
                 raise SyncError("Save the settings once so the system knows whose name the import is recorded under.")
             report = await import_worksheet(db, org_id, c.configured_by, content, dry_run=dry_run, include_costing=c.include_costing,
-                                            post_to_finance=c.post_to_finance, production_cycle_id=c.production_cycle_id)
+                                            post_to_finance=c.post_to_finance, production_cycle_id=c.production_cycle_id,
+                                            source="sync", filename="Google Sheet")
             if report["ok"]:
                 status, message = "ok", _describe(report)
             else:

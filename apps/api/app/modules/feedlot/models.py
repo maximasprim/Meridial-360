@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, timezone
 
 from sqlalchemy import (
-    CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func, text,
+    CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -150,3 +150,26 @@ class WorksheetSync(Base, UUIDPKMixin, TimestampMixin):
     last_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)         # of the last workbook imported successfully
     last_report: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+
+
+
+class WorksheetVersion(Base, UUIDPKMixin):
+    """Every workbook that was imported (upload or Google Sheet sync) or restored, kept so it can be downloaded and
+    restored later. 'unpost' entries have no file. Append-only history: rows are added, never edited."""
+    __tablename__ = "worksheet_versions"
+    __table_args__ = (UniqueConstraint("organization_id", "version_no", name="uq_worksheet_versions_org_no"),)
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    production_cycle_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    version_no: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(16))                       # upload | sync | restore | unpost
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    restored_from_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

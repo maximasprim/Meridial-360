@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.farm.models import Farm
-from app.modules.feedlot import metrics
+from app.modules.feedlot import metrics, worksheet_reconcile, worksheet_versions
 from app.modules.feedlot.models import FeedlotAnimal, FeedlotExit, IntakeBatch, SaleBatch
 from app.modules.feedlot.batch_scope import existing_by_number, unassigned_by_number
 from app.modules.feedlot.service import upsert_costing_doc
@@ -42,7 +42,12 @@ class _Abort(Exception):
 async def import_worksheet(db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UUID, content: bytes, *,
                            farm_id: uuid.UUID | None = None, dry_run: bool = True,
                            include_costing: bool = True, post_to_finance: bool = True,
-                           production_cycle_id: uuid.UUID | None = None) -> dict:
+                           production_cycle_id: uuid.UUID | None = None, reconcile: bool = True,
+                           source: str = "upload", filename: str | None = None, move_batches: bool = True) -> dict:
+    """reconcile=True (default): weights the worksheet CHANGED are corrected on animals that already exist (the wrong
+    imported weight is voided, the right one appended; the farm's own entries are never touched), and an animal whose
+    tag the sheet now lists under a different batch is left alone and reported. reconcile=False is the old append-only
+    behaviour. Every real (non dry-run) import is kept as a version of the worksheet."""
     from app.modules.cycles.deps import ensure_writable
     await ensure_writable(db, org_id, production_cycle_id)      # unknown / closed cycle -> a clear 404 / 409 before anything is parsed
     if production_cycle_id is None:
@@ -66,19 +71,29 @@ async def import_worksheet(db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UU
     await get_or_create_subscription(db, org_id)
     report: dict = {"dry_run": dry_run, "ok": True, "created": Counter(), "updated": Counter(), "unchanged": Counter(),
                     "warnings": list(pw.warnings), "errors": [], "date_corrections": pw.date_corrections,
-                    "reconciliation": {}}
+                    "reconciliation": {}, "conflicts": [], "moved": [], "reconcile": reconcile}
     try:
-        await _apply(db, org_id, user_id, pw, farm_id, include_costing, report, post_to_finance, production_cycle_id)
+        version = None
+        if not dry_run:
+            version, is_new = await worksheet_versions.record_version(db, org_id, user_id, content, source=source,
+                                                                      filename=filename, cycle_id=production_cycle_id)
+            report["version"] = {"id": str(version.id), "version_no": version.version_no, "new": is_new}
+        await _apply(db, org_id, user_id, pw, farm_id, include_costing, report, post_to_finance, production_cycle_id,
+                     reconcile=reconcile, version_id=version.id if version else None, move_batches=move_batches)
         if dry_run:
             await db.rollback()
         else:
+            if version is not None:
+                version.summary = worksheet_versions.summarise(report) if report["ok"] else version.summary
             await db.commit()
     except _Abort:
         await db.rollback()
         report["ok"] = False
+        report.pop("version", None)
     except HTTPException as e:
         await db.rollback()
         report["ok"] = False
+        report.pop("version", None)
         report["errors"].append({"code": "http_error", "message": str(e.detail)})
     except Exception:
         await db.rollback()
@@ -92,7 +107,8 @@ async def import_worksheet(db: AsyncSession, org_id: uuid.UUID, user_id: uuid.UU
 
 
 async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costing, report, post_to_finance=True,
-                 cycle_id: uuid.UUID | None = None) -> None:
+                 cycle_id: uuid.UUID | None = None, reconcile: bool = True, version_id: uuid.UUID | None = None,
+                 move_batches: bool = True) -> None:
     def warn(code, where, msg, **kw):
         report["warnings"].append({"code": code, "where": where, "message": msg, **kw})
 
@@ -243,6 +259,8 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
         Animal.organization_id == org_id, Animal.animal_number.in_(list(plan))))).scalars()}
     from app.modules.billing.service import check_animal_limit
     link_rows = {fa.animal_id: fa for fa in (await db.execute(select(FeedlotAnimal).where(FeedlotAnimal.organization_id == org_id))).scalars()}
+    batch_by_id = {x.id: x for x in intake_rows}
+    batch_by_id.update({x.id: x for x in batches.values()})
     sb_by_num = {**existing_sb, **sale_batches}
     from app.modules.feedlot import ledger_sync
     acq_recorded = await ledger_sync._recorded_acquisition_ids(db, org_id) if post_to_finance else set()
@@ -275,23 +293,48 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
             db.add(FeedlotAnimal(organization_id=org_id, animal_id=animal.id, intake_batch_id=b.id, received_on=p["received_on"],
                                  entry_weight_kg=D(p["entry"]) if p["entry"] else None))
             report["created"]["batch_links"] += 1
-        # weights (skip dates already recorded -> idempotent append)
-        have = {w.recorded_at.date() for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id == animal.id))).scalars()}
-        new_w = 0
-        for d, kg in sorted(p["weights"]):
-            if d in have:
+        if reconcile and fa is not None and fa.intake_batch_id != b.id:
+            # The same tag now sits in a different batch on the sheet than in the system (a tagging mix-up that the
+            # farm corrected on the worksheet). The worksheet is the truth: the animal is moved to the batch the sheet
+            # lists it under and its weights are aligned. With move_batches=False it is left alone and reported instead.
+            sysb = batch_by_id.get(fa.intake_batch_id)
+            info = {"code": "tag_batch_mismatch", "tag": tag, "system_batch": sysb.batch_number if sysb else None,
+                    "sheet_batch": b.batch_number, "system_entry_kg": float(fa.entry_weight_kg) if fa.entry_weight_kg is not None else None,
+                    "sheet_entry_kg": p["entry"]}
+            if not move_batches:
+                report["conflicts"].append(info)
                 continue
-            db.add(WeightRecord(animal_id=animal.id, weight_kg=D(kg), recorded_at=_utc(d), recorded_by=user_id, notes="Imported from worksheet"))
-            db.add(AnimalEvent(animal_id=animal.id, event_type="weighed", event_at=_utc(d), recorded_by=user_id,
-                               data={"weight_kg": str(kg), "imported": True}))
-            have.add(d); new_w += 1
-        report["created"]["weight_records"] += new_w
-        if p["weights"]:
-            latest = max(have)
-            if animal.status in ("active",) or animal.current_weight is None:
-                kg_latest = next((kg for d, kg in sorted(p["weights"], reverse=True) if d == latest), None)
-                if kg_latest is not None:
-                    animal.current_weight = D(kg_latest)
+            cost_before = float(animal.acquisition_cost) if animal.acquisition_cost is not None else None
+            fa.intake_batch_id = b.id
+            fa.received_on = p["received_on"]
+            animal.acquisition_date = p["received_on"]
+            animal.acquisition_cost = D(b.landed_cost_per_head)
+            db.add(AnimalEvent(animal_id=animal.id, event_type="batch_corrected", event_at=datetime.now(timezone.utc), recorded_by=user_id,
+                               data={"from_batch": info["system_batch"], "to_batch": b.batch_number, "imported": True}))
+            report["moved"].append({**info, "cost_before": cost_before, "cost_after": float(b.landed_cost_per_head)})
+            report["updated"]["animals_moved"] += 1
+        if reconcile:
+            worksheet_reconcile.align_entry_weight(fa, p["entry"], report)
+            await worksheet_reconcile.align_animal_weights(db, animal, p["weights"], user_id, version_id, report,
+                                                           prune=bool(p["weights"]), tag=tag)
+        else:
+            # weights (skip dates already recorded -> idempotent append)
+            have = {w.recorded_at.date() for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id == animal.id))).scalars()}
+            new_w = 0
+            for d, kg in sorted(p["weights"]):
+                if d in have:
+                    continue
+                db.add(WeightRecord(animal_id=animal.id, weight_kg=D(kg), recorded_at=_utc(d), recorded_by=user_id, notes="Imported from worksheet"))
+                db.add(AnimalEvent(animal_id=animal.id, event_type="weighed", event_at=_utc(d), recorded_by=user_id,
+                                   data={"weight_kg": str(kg), "imported": True}))
+                have.add(d); new_w += 1
+            report["created"]["weight_records"] += new_w
+            if p["weights"]:
+                latest = max(have)
+                if animal.status in ("active",) or animal.current_weight is None:
+                    kg_latest = next((kg for d, kg in sorted(p["weights"], reverse=True) if d == latest), None)
+                    if kg_latest is not None:
+                        animal.current_weight = D(kg_latest)
         # exits
         ex = exits.get(tag)
         has_exit = (await db.execute(select(FeedlotExit.id).where(FeedlotExit.animal_id == animal.id))).first()
@@ -323,6 +366,17 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
         elif ex and has_exit:
             report["unchanged"]["exits"] += 1
     await db.flush()
+    if report["moved"]:
+        net = sum((m["cost_after"] or 0) - (m["cost_before"] or 0) for m in report["moved"])
+        warn("animals_moved", "worksheet",
+             f"{len(report['moved'])} animal(s) were moved to the batch the worksheet lists them under: {[m['tag'] for m in report['moved']][:12]}. "
+             f"Their purchase cost per head now follows the new batch (net change KES {net:,.0f}). Purchases already recorded in "
+             f"Finance were not changed.")
+    if report["conflicts"]:
+        tags = [c["tag"] for c in report["conflicts"]]
+        warn("tag_batch_mismatch", "worksheet",
+             f"{len(tags)} animal(s) are in a different batch in the system than the worksheet now lists them under, so "
+             f"their weights were NOT changed: {tags[:12]}. They are probably re-tagged animals; sort the tags out first, then import again.")
     if unbooked_sales:
         warn("sales_not_in_finance", "Finance",
              f"{len(unbooked_sales)} sale(s) have no price per kg, so they were saved but NOT recorded in Finance "

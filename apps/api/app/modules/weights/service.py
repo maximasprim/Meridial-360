@@ -12,7 +12,7 @@ from app.core.config import get_settings
 from app.modules.cycles.deps import CycleSel, cond
 from app.modules.feedlot import metrics as feedlot_metrics
 from app.modules.feedlot.models import FeedlotAnimal, IntakeBatch
-from app.modules.livestock.models import Animal, WeightRecord
+from app.modules.livestock.models import Animal, WeightRecord, live_weights
 from app.modules.weights import logic
 
 LIVE_STATUSES = ("active", "for_sale", "quarantined")   # animals still on the farm and not yet sold or lost
@@ -52,7 +52,7 @@ async def _load(db: AsyncSession, org_id: uuid.UUID, statuses=LIVE_STATUSES, ani
     weights: dict[uuid.UUID, list[tuple[date, float]]] = defaultdict(list)
     if ids:
         wq = (select(WeightRecord.animal_id, WeightRecord.recorded_at, WeightRecord.weight_kg)
-              .where(WeightRecord.animal_id.in_(ids)).order_by(WeightRecord.recorded_at, WeightRecord.created_at))
+              .where(WeightRecord.animal_id.in_(ids), live_weights()).order_by(WeightRecord.recorded_at, WeightRecord.created_at))
         for aid, at, kg in (await db.execute(wq)).all():
             weights[aid].append((_local_date(at), float(kg)))
     return rows, weights

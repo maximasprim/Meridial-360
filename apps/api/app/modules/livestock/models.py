@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import String, Numeric, Date, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import String, Numeric, Date, DateTime, ForeignKey, Integer, Text, exists
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -106,6 +106,25 @@ class WeightRecord(Base, UUIDPKMixin):
     )
 
     animal: Mapped["Animal"] = relationship(back_populates="weights")
+
+
+class WeightVoid(Base, UUIDPKMixin):
+    """A weight record that a worksheet correction has set aside. weight_records is append-only (a trigger rejects
+    UPDATE and DELETE), so a wrong imported weight is never edited: it is voided here and the right value is
+    appended. Every reader skips voided records (live_weights()). Deleting the void row brings the record back."""
+    __tablename__ = "weight_voids"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    weight_record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("weight_records.id"), unique=True)
+    reason: Mapped[str] = mapped_column(String(255))
+    version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)   # FK in migration 0052
+    voided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    voided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+def live_weights():
+    """WHERE condition for queries over WeightRecord: the record has not been voided by a worksheet correction."""
+    return ~exists().where(WeightVoid.weight_record_id == WeightRecord.id)
 
 
 class Movement(Base, UUIDPKMixin):

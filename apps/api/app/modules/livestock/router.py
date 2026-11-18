@@ -9,7 +9,7 @@ from app.modules.identity.deps import require_any_permission, require_permission
 from app.modules.identity.models import User
 from app.modules.farm.models import Farm, Location
 from app.modules.livestock import schemas, service
-from app.modules.livestock.models import Animal, INACTIVE_STATUSES
+from app.modules.livestock.models import Animal, INACTIVE_STATUSES, WeightVoid
 from app.modules.cycles import resolve as cyc_resolve
 from app.modules.cycles.deps import CycleSel, cycle_filter
 
@@ -140,7 +140,9 @@ async def get_weights(
     db: AsyncSession = Depends(get_db),
 ):
     animal = await service.get_animal(db, animal_id, user.organization_id)
-    return service.compute_weight_history_with_adg(animal.weights)
+    voided = set((await db.execute(select(WeightVoid.weight_record_id).where(
+        WeightVoid.weight_record_id.in_([w.id for w in animal.weights])))).scalars()) if animal.weights else set()
+    return service.compute_weight_history_with_adg([w for w in animal.weights if w.id not in voided])
 
 
 @router.post("/{animal_id}/weights", response_model=schemas.WeightRecordOut, status_code=status.HTTP_201_CREATED)

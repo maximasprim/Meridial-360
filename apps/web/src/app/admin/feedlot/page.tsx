@@ -11,6 +11,7 @@ import { BatchesTab } from "./batches-tab";
 import { CostingTab } from "./costing-tab";
 import { SalesTab } from "./sales-tab";
 import { SheetSync } from "./sheet-sync";
+import { WorksheetVersions } from "./worksheet-versions";
 import { WeighDayForm } from "@/components/weigh-day-form";
 
 interface IntakeBatch {
@@ -219,6 +220,7 @@ function Worksheet() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="lg:col-span-2"><SheetSync /></div>
+      <div className="lg:col-span-2"><WorksheetVersions /></div>
       <Card className="space-y-3">
         <h2 className="font-display text-lg text-forest">Import your worksheet</h2>
         <p className="text-sm text-muted">Reads the BATCH, Sales weight, register and costing sheets. Always preview first: nothing is saved until you press Import. Re-importing the same file changes nothing; a newer copy adds only what is new.</p>

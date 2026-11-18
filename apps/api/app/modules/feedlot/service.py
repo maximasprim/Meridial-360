@@ -14,7 +14,7 @@ from app.modules.feedlot.models import (
     CostingDocument, FeedlotAnimal, FeedlotExit, IntakeBatch, SaleBatch, WeighSession,
 )
 from app.modules.livestock import schemas as livestock_schemas, service as livestock_service
-from app.modules.livestock.models import INACTIVE_STATUSES, Animal, WeightRecord
+from app.modules.livestock.models import INACTIVE_STATUSES, Animal, WeightRecord, live_weights
 from app.modules.cycles import resolve as cyc_resolve
 from app.modules.cycles.deps import CycleSel, apply_col, ensure_writable
 from app.modules.cycles.models import ProductionCycle
@@ -300,7 +300,7 @@ async def bulk_weigh(db, org_id, user_id, req: schemas.BulkWeighRequest) -> dict
     existing_today: dict[uuid.UUID, WeightRecord] = {}
     all_weights: dict[uuid.UUID, list[tuple[datetime, float]]] = defaultdict(list)
     if aids:
-        for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id.in_(aids)))).scalars():
+        for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id.in_(aids), live_weights()))).scalars():
             all_weights[w.animal_id].append((w.recorded_at, float(w.weight_kg)))
             if day_lo <= w.recorded_at < day_hi:
                 existing_today[w.animal_id] = w
@@ -369,7 +369,7 @@ async def list_weigh_sessions(db, org_id, limit: int = 100, cycle: CycleSel | No
     if cycle is not None:
         # a weigh day belongs to a cycle when any animal of that cycle was weighed on that date
         day = func.date(WeightRecord.recorded_at)
-        weighed = (select(day).where(WeightRecord.animal_id.in_(cyc_resolve.animal_ids_in(org_id, cycle))).distinct())
+        weighed = (select(day).where(WeightRecord.animal_id.in_(cyc_resolve.animal_ids_in(org_id, cycle)), live_weights()).distinct())
         q = q.where(WeighSession.weighed_on.in_(weighed))
     rows = (await db.execute(q.order_by(WeighSession.weighed_on.desc()).limit(limit))).scalars().all()
     return [{"id": str(r.id), "weighed_on": r.weighed_on.isoformat(), "scale_label": r.scale_label,
@@ -659,7 +659,7 @@ async def _load(db, org_id, cycle: CycleSel | None = None, intake_batch_id=None,
         return []
     ids = [a.id for _, a, _ in rows]
     weights: dict[uuid.UUID, list[tuple[date, float]]] = defaultdict(list)
-    for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id.in_(ids)))).scalars():
+    for w in (await db.execute(select(WeightRecord).where(WeightRecord.animal_id.in_(ids), live_weights()))).scalars():
         weights[w.animal_id].append((w.recorded_at.date(), float(w.weight_kg)))
     exits = {e.animal_id: e for e in (await db.execute(
         select(FeedlotExit).where(FeedlotExit.organization_id == org_id, FeedlotExit.animal_id.in_(ids)))).scalars()}
