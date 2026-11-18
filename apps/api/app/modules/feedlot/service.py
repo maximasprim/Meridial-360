@@ -32,10 +32,16 @@ def _404(what: str) -> HTTPException:
 # ------------------------------------------------------------------ batches
 async def _next_number(db: AsyncSession, model, org_id: uuid.UUID, cycle_id: uuid.UUID | None = None) -> int:
     """Next free batch number. Numbers restart in every production cycle, so with a cycle it is the next number
-    inside that cycle; without one it is the next number across the organisation (as before)."""
+    inside that cycle; without one it is the next number across the organisation (as before).
+
+    Sale batches belong to a cycle if they are tagged to it OR any of their exits is an animal of that cycle
+    (the same rule the Sales list uses), so the numbering counts the same batches the user sees."""
     q = select(func.coalesce(func.max(model.batch_number), 0)).where(model.organization_id == org_id)
     if cycle_id is not None:
-        q = q.where(model.production_cycle_id == cycle_id)
+        if model is SaleBatch:
+            q = q.where(cyc_resolve.sale_batch_in(org_id, CycleSel(cycle_id)))
+        else:
+            q = q.where(model.production_cycle_id == cycle_id)
     return int((await db.execute(q)).scalar_one()) + 1
 
 

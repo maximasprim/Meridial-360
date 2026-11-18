@@ -206,6 +206,7 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
                 cand = unassigned_sale.get(num)
                 if cand is not None and cand.sold_on == sold_on:
                     sb = cand
+                    sb.production_cycle_id = cycle_id
                 elif cand is not None:
                     warn("batch_number_reused", ss.sheet,
                          f"An unassigned sale batch {num} (sold {cand.sold_on}) already exists; it was left untouched and "
