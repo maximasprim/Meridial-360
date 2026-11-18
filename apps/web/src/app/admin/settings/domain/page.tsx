@@ -65,7 +65,7 @@ export default function DomainSettingsPage() {
     <AdminShell>
       <h1 className="mb-1 font-display text-2xl text-forest">Custom domain</h1>
       <p className="mb-6 text-sm text-muted">
-        Use your own domain (e.g. terramus.com) for your public storefront, instead of the default address.
+        Use your own domain (e.g. meridial360.com) for your public storefront, instead of the default address.
       </p>
 
       {error && <div className="mb-4"><ErrorState message={error} /></div>}
@@ -84,7 +84,7 @@ export default function DomainSettingsPage() {
             className="space-y-3"
           >
             <Input
-              id="domain-input" label="Domain" placeholder="terramus.com" required
+              id="domain-input" label="Domain" placeholder="meridial360.com" required
               value={domainInput} onChange={(e) => setDomainInput(e.target.value)}
             />
             <Button type="submit" disabled={setDomain.isPending} className="w-full">
@@ -121,7 +121,7 @@ export default function DomainSettingsPage() {
                     <p className="mt-1 font-mono">A record → {status.dns_instructions.a_record}</p>
                   </div>
                   <div>
-                    <p className="font-medium text-ink">If using a subdomain (e.g. terramus.com) - recommended:</p>
+                    <p className="font-medium text-ink">If using a subdomain (e.g. meridial360.com) - recommended:</p>
                     <p className="mt-1 font-mono">CNAME record → {status.dns_instructions.cname_record}</p>
                   </div>
                   <div>

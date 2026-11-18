@@ -18,7 +18,7 @@ export interface CartItem {
 }
 
 function cartKey(orgSlug: string): string {
-  return `terramus-cart:${orgSlug}`;
+  return `meridial360-cart:${orgSlug}`;
 }
 
 function readCart(orgSlug: string): CartItem[] {
@@ -38,7 +38,7 @@ function writeCart(orgSlug: string, items: CartItem[]): void {
     // header's cart count) don't get the browser's own "storage" event -
     // that only fires in *other* tabs - so a custom event covers same-tab
     // updates and "storage" covers cross-tab ones.
-    window.dispatchEvent(new CustomEvent("terramus-cart-updated"));
+    window.dispatchEvent(new CustomEvent("meridial360-cart-updated"));
   } catch {
     // localStorage unavailable (private browsing quota, etc.) - cart just
     // won't persist this session; nothing else to do about it here.
@@ -84,10 +84,10 @@ export function useCart(orgSlug: string): CartItem[] {
 
   useEffect(() => {
     refresh();
-    window.addEventListener("terramus-cart-updated", refresh);
+    window.addEventListener("meridial360-cart-updated", refresh);
     window.addEventListener("storage", refresh);
     return () => {
-      window.removeEventListener("terramus-cart-updated", refresh);
+      window.removeEventListener("meridial360-cart-updated", refresh);
       window.removeEventListener("storage", refresh);
     };
   }, [refresh]);

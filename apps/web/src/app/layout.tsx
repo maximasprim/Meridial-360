@@ -13,7 +13,7 @@ import { SwRegister } from "@/components/sw-register";
 // this runs somewhere with network access; no other file needs to change.
 
 export const metadata: Metadata = {
-  title: "TerraMus - Farm Management Platform",
+  title: "Meridial 360 - Farm Management System",
   description: "Livestock farm management, ERP & E-commerce platform",
   manifest: "/manifest.json",
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },

@@ -1,6 +1,6 @@
 {
-  "name": "TerraMus Farm Management",
-  "short_name": "TerraMus",
+  "name": "Meridial 360 Farm Management System",
+  "short_name": "Meridial",
   "description": "Farm management: weigh animals, record flocks and sales, even with no signal.",
   "start_url": "/admin/feedlot#weigh",
   "scope": "/",

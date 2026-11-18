@@ -32,7 +32,7 @@ export default function PlatformAnalyticsPage() {
           </div>
           <div className="no-print flex flex-wrap items-center gap-3">
             <RangePicker value={months} options={RANGES} onChange={setMonths} label="Months to show" />
-            <Button variant="ghost" disabled={!data} onClick={() => data && downloadCsv(`terramus-platform-${data.start_date}-to-${data.end_date}.csv`, platformRows(data))}>
+            <Button variant="ghost" disabled={!data} onClick={() => data && downloadCsv(`meridial360-platform-${data.start_date}-to-${data.end_date}.csv`, platformRows(data))}>
               Export CSV
             </Button>
             <Button variant="ghost" onClick={() => window.print()}>Print / save as PDF</Button>

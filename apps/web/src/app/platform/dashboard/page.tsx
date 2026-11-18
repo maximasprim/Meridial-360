@@ -15,7 +15,7 @@ export default function PlatformDashboardPage() {
 
   return (
     <PlatformShell>
-      <h1 className="mb-1 font-display text-2xl text-forest">TerraMus overview</h1>
+      <h1 className="mb-1 font-display text-2xl text-forest">Meridial 360 overview</h1>
       <p className="mb-6 text-sm text-muted">Every tenant, at a glance.</p>
 
       {error && <ErrorState message={error instanceof PlatformApiError ? error.message : "Failed to load dashboard"} />}

@@ -6,7 +6,7 @@ import { useMe } from "@/lib/use-auth";
 /** Tabs that can never be hidden, so the page always has something to show. */
 export const ALWAYS_SHOWN_TABS: readonly string[] = ["Overview"];
 
-const KEY_PREFIX = "terramus.animalTabs.hidden.v1.";   // one entry per signed-in user, on this device
+const KEY_PREFIX = "meridial360.animalTabs.hidden.v1.";   // one entry per signed-in user, on this device
 
 function read(key: string): string[] {
   try {

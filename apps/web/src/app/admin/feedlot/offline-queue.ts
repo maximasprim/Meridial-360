@@ -21,7 +21,7 @@ export interface QueuedWeighDay {
 }
 
 export interface KV { getItem(key: string): string | null; setItem(key: string, value: string): void }
-export const QUEUE_KEY = "terramus.feedlot.weighQueue.v1";
+export const QUEUE_KEY = "meridial360.feedlot.weighQueue.v1";
 
 export function loadQueue(store: KV): QueuedWeighDay[] {
   try {

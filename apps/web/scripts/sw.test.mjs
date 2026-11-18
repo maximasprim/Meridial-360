@@ -99,11 +99,11 @@ function makeWorld() {
   w.handlers.message({ data: { type: "SOMETHING_ELSE" }, waitUntil: () => { throw new Error("should not be called"); } });
   ok(true, "unknown messages ignored");
 
-  // 7. activate removes only OLD terramus caches
-  w = makeWorld(); await w.caches.open("terramus-static-v0"); await w.caches.open("other-app-cache"); await w.caches.open("terramus-static-v1");
+  // 7. activate removes only OLD meridial360 caches
+  w = makeWorld(); await w.caches.open("meridial360-static-v0"); await w.caches.open("other-app-cache"); await w.caches.open("meridial360-static-v1");
   let act = null; w.handlers.activate({ waitUntil: (p) => { act = p; } }); await act;
   const keys = await w.caches.keys();
-  ok(!keys.includes("terramus-static-v0") && keys.includes("other-app-cache") && keys.includes("terramus-static-v1"), "activate prunes only old terramus caches");
+  ok(!keys.includes("meridial360-static-v0") && keys.includes("other-app-cache") && keys.includes("meridial360-static-v1"), "activate prunes only old meridial360 caches");
 
   console.log(`service worker tests: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
 })();

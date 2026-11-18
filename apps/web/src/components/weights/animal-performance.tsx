@@ -42,15 +42,17 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <Fact label="Entry weight" value={kg(a.start_kg)} hint={a.start_date ? `on ${fullDate(a.start_date)}` : undefined} />
         <Fact label="Latest weight" value={kg(a.current_kg)} hint={a.last_weighed ? `on ${fullDate(a.last_weighed)}` : undefined} />
-        <Fact label="Target" value={kg(a.target_kg)} hint={a.target_source === "batch" ? "from its batch" : a.target_source === "animal" ? "set for this animal" : a.target_source === "default" ? "default target" : "none set"} />
+        <Fact label="Overall gain so far" value={kg(a.gain_kg)} hint={a.start_kg != null && a.current_kg != null ? "since entry" : undefined} />
+        <Fact label="ADG" value={adgText(a.adg)} hint={a.overall_adg != null && a.recent_adg != null ? `overall ${a.overall_adg.toFixed(2)}` : undefined} />
+        <Fact label="Days on farm" value={a.days_on_farm != null ? `${a.days_on_farm} ${a.days_on_farm === 1 ? "day" : "days"}` : "-"}
+          hint={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined} />
         <Fact label="Still to gain" value={kg(a.remaining_kg)} hint={a.progress_pct != null ? `${a.progress_pct.toFixed(0)}% of the way` : undefined} />
-        <Fact label="Daily gain" value={adgText(a.adg)} hint={a.overall_adg != null && a.recent_adg != null ? `overall ${a.overall_adg.toFixed(2)}` : undefined} />
-        <Fact label="Gain so far" value={kg(a.gain_kg)} hint={a.start_kg != null ? `from ${kg(a.start_kg)}` : undefined} />
-        {a.target_days ? <Fact label="Days on farm" value={`${a.days_on_farm ?? 0} of ${a.target_days}`} hint={a.days_left != null ? (a.days_left > 0 ? `${a.days_left} days left` : "target days used up") : undefined} /> : null}
-        {a.target_days && a.required_adg != null ? <Fact label="Needs to gain" value={adgText(a.required_adg)} hint={a.plan_adg != null ? `plan ${a.plan_adg.toFixed(2)} kg/day` : undefined} /> : null}
-        <Fact label="Expected ready" value={a.stage === "ready" ? "Now" : a.est_ready_date ? shortDate(a.est_ready_date) : "-"}
+        <Fact label="Expected readiness" value={a.stage === "ready" ? "Now" : a.est_ready_date ? shortDate(a.est_ready_date) : "-"}
           hint={a.days_to_ready != null && a.stage !== "ready" ? (a.days_to_ready === 0 ? "any day now" : `in about ${a.days_to_ready} days`) : undefined} />
+        <Fact label="Target" value={kg(a.target_kg)} hint={a.target_source === "batch" ? "from its batch" : a.target_source === "animal" ? "set for this animal" : a.target_source === "default" ? "default target" : "none set"} />
+        {a.target_days && a.required_adg != null ? <Fact label="Needs to gain" value={adgText(a.required_adg)} hint={a.plan_adg != null ? `plan ${a.plan_adg.toFixed(2)} kg/day` : undefined} /> : null}
       </dl>
 
       {a.progress_pct != null && (

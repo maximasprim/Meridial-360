@@ -27,8 +27,8 @@ def test_invalid_or_reserved_domains_are_rejected(raw):
 
 
 def test_the_platforms_own_hosts_cannot_be_claimed():
-    own = hosts_from_urls(["https://app.terramus.co.ke", "admin.terramus.co.ke", "http://localhost:3000"])
-    assert own == ["app.terramus.co.ke", "admin.terramus.co.ke", "localhost"]
+    own = hosts_from_urls(["https://app.meridial360.co.ke", "admin.meridial360.co.ke", "http://localhost:3000"])
+    assert own == ["app.meridial360.co.ke", "admin.meridial360.co.ke", "localhost"]
     with pytest.raises(ValueError):
-        normalise_domain("APP.terramus.co.ke", own)
-    assert normalise_domain("shop.terramus.co.ke", own) == "shop.terramus.co.ke"
+        normalise_domain("APP.meridial360.co.ke", own)
+    assert normalise_domain("shop.meridial360.co.ke", own) == "shop.meridial360.co.ke"

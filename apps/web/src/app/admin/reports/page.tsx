@@ -42,7 +42,7 @@ export default function ReportsPage() {
 
   const exportCsv = (section: TenantSection) => {
     if (!data) return;
-    downloadCsv(`terramus-${section}-${data.start_date}-to-${data.end_date}.csv`, tenantSectionRows(data, section));
+    downloadCsv(`meridial360-${section}-${data.start_date}-to-${data.end_date}.csv`, tenantSectionRows(data, section));
   };
   const csvButton = (section: TenantSection, label = "Export CSV") => (
     <Button key={section} variant="ghost" onClick={() => exportCsv(section)}>{label}</Button>

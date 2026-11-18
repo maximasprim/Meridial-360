@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     # and fill in the fields below to send real email.
     EMAIL_PROVIDER_MODE: str = "smtp"  # mock | smtp
     EMAIL_API_KEY: str = "" 
-    EMAIL_FROM_NAME: str = "TerraMus"
+    EMAIL_FROM_NAME: str = "Meridial 360"
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""

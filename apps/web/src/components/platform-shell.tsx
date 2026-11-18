@@ -40,11 +40,11 @@ function PlatformShellFrame({ children }: { children: React.ReactNode }) {
     // introducing a new color.
     <ShellFrame
       sidebarClassName="bg-ink"
-      mobileTitle="TerraMus Admin"
+      mobileTitle="Meridial 360 Admin"
       mainClassName="p-3"
       brand={
         <div className="border-b border-white/10 px-6 py-5">
-          <p className="font-display text-lg italic">TerraMus Admin</p>
+          <p className="font-display text-lg italic">Meridial 360 Admin</p>
           <p className="text-xs text-paper/60">
             {me?.full_name} · <span className="uppercase">{me?.role}</span>
           </p>

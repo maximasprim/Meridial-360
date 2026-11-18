@@ -40,7 +40,7 @@ function ResetPasswordContent() {
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <p className="font-display text-3xl italic text-forest">TerraMus</p>
+          <p className="font-display text-3xl italic text-forest">Meridial 360</p>
           <p className="mt-1 text-sm text-muted">
             {token ? "Choose a new password" : "Reset your password"}
           </p>

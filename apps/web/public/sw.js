@@ -1,4 +1,4 @@
-/* TerraMus service worker - lets the admin app OPEN with no signal (e.g. weighing at the crush pen).
+/* meridial360 service worker - lets the admin app OPEN with no signal (e.g. weighing at the crush pen).
  *
  * What it does: remembers the app's own files (/_next/static, immutable) and the admin page shells, and
  * serves them when the network is down.
@@ -8,8 +8,8 @@
  *
  * Bump VERSION to drop old caches after a release. */
 const VERSION = "v1";
-const STATIC_CACHE = `terramus-static-${VERSION}`;
-const PAGE_CACHE = `terramus-pages-${VERSION}`;
+const STATIC_CACHE = `meridial360-static-${VERSION}`;
+const PAGE_CACHE = `meridial360-pages-${VERSION}`;
 const FALLBACK_PAGE = "/admin/feedlot";
 const OFFLINE_HTML = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
   '<title>Offline</title><body style="font-family:sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">' +
@@ -21,7 +21,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     for (const key of await caches.keys()) {
-      if (key.startsWith("terramus-") && key !== STATIC_CACHE && key !== PAGE_CACHE) await caches.delete(key);
+      if (key.startsWith("meridial360-") && key !== STATIC_CACHE && key !== PAGE_CACHE) await caches.delete(key);
     }
     await self.clients.claim();
   })());
