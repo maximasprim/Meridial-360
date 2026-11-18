@@ -15,6 +15,7 @@ from app.modules.feedlot.models import (
 )
 from app.modules.livestock import schemas as livestock_schemas, service as livestock_service
 from app.modules.livestock.models import INACTIVE_STATUSES, Animal, WeightRecord, live_weights
+from app.modules.weights import logic as weights_logic
 from app.modules.cycles import resolve as cyc_resolve
 from app.modules.cycles.deps import CycleSel, apply_col, ensure_writable
 from app.modules.cycles.models import ProductionCycle
@@ -332,6 +333,8 @@ async def bulk_weigh(db, org_id, user_id, req: schemas.BulkWeighRequest) -> dict
             days = (req.weighed_on - prior[-1][0].date()).days
             if days > 0 and abs(w - prior[-1][1]) / days > s["implausible_gain_kg_per_day"]:
                 flags.append(f"large_change_{round(w - prior[-1][1], 1)}kg_in_{days}d")
+            if days > 0 and abs(w - prior[-1][1]) / days > weights_logic.ADG_ALERT:
+                flags.append(f"adg_alert_{(w - prior[-1][1]) / days:+.2f}")      # daily gain above +2 or below -2 kg/day
         dup = existing_today.get(animal.id)
         if dup is not None and not req.overwrite:
             results.append({"animal": label, "status": "already_recorded", "existing_kg": float(dup.weight_kg)})

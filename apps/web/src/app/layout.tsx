@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+// @ts-ignore -- Next.js resolves global CSS side-effect imports
 import "./globals.css";
 import { QueryProvider } from "@/components/query-provider";
 import { SwRegister } from "@/components/sw-register";

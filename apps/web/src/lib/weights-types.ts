@@ -15,7 +15,13 @@ export interface WeightRow {
   gain_kg: number | null; overall_adg: number | null; recent_adg: number | null; adg: number | null; adg_band: Band | null;
   remaining_kg: number | null; progress_pct: number | null; est_ready_date: string | null; days_to_ready: number | null;
   stage: Stage; hold_reason: string | null; flags: string[]; weigh_count: number;
+  adg_alert?: AdgAlert | null;
 }
+
+/** Daily gain between the last two weighings, above +threshold or below -threshold kg/day. */
+export interface AdgAlert { adg: number; direction: "high" | "low"; from_date: string; to_date: string; from_kg: number; to_kg: number; days: number; threshold: number }
+export interface WeightAlertItem extends AdgAlert { animal_id: string; tag: string; batch: string | null }
+export interface WeightAlertList { threshold: number; count: number; alerts: WeightAlertItem[] }
 
 export interface BatchSummary {
   batch_id: string | null; batch: string; head: number; with_target: number; avg_target_kg: number | null;

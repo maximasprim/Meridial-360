@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import String, Numeric, Date, DateTime, ForeignKey, Integer, Text, exists
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -120,6 +121,19 @@ class WeightVoid(Base, UUIDPKMixin):
     version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)   # FK in migration 0052
     voided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     voided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class WeightAlertReview(Base, UUIDPKMixin):
+    """A person has followed up a daily-gain alert (see weights/alerts.py). One row per animal and alert date."""
+    __tablename__ = "weight_alert_reviews"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    animal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("animals.id"))
+    alert_date: Mapped[date] = mapped_column(Date)
+    adg: Mapped[Decimal | None] = mapped_column(Numeric(8, 3), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
 def live_weights():

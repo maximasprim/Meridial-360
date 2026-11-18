@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.farm.models import Farm
 from app.modules.feedlot import metrics, worksheet_reconcile, worksheet_versions
+from app.modules.weights import logic as weights_logic
 from app.modules.feedlot.models import FeedlotAnimal, FeedlotExit, IntakeBatch, SaleBatch
 from app.modules.feedlot.batch_scope import existing_by_number, unassigned_by_number
 from app.modules.feedlot.service import upsert_costing_doc
@@ -293,6 +294,9 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
             db.add(FeedlotAnimal(organization_id=org_id, animal_id=animal.id, intake_batch_id=b.id, received_on=p["received_on"],
                                  entry_weight_kg=D(p["entry"]) if p["entry"] else None))
             report["created"]["batch_links"] += 1
+        gain_alert = weights_logic.adg_alert(weights_logic.daily_points(p["weights"]))
+        if gain_alert:
+            report.setdefault("adg_alerts", []).append({"tag": tag, "adg": gain_alert["adg"], "to_date": gain_alert["to_date"]})
         if reconcile and fa is not None and fa.intake_batch_id != b.id:
             # The same tag now sits in a different batch on the sheet than in the system (a tagging mix-up that the
             # farm corrected on the worksheet). The worksheet is the truth: the animal is moved to the batch the sheet
@@ -366,6 +370,12 @@ async def _apply(db, org_id, user_id, pw: ParsedWorkbook, farm_id, include_costi
         elif ex and has_exit:
             report["unchanged"]["exits"] += 1
     await db.flush()
+    if report.get("adg_alerts"):
+        al = report["adg_alerts"]
+        warn("adg_alert", "worksheet",
+             f"{len(al)} animal(s) have a daily gain above +{weights_logic.ADG_ALERT:g} or below -{weights_logic.ADG_ALERT:g} kg/day "
+             f"between their last two weighings, so a weight may be wrong: {[(x['tag'], x['adg']) for x in al][:10]}. "
+             f"They show on the dashboard for follow-up.")
     if report["moved"]:
         net = sum((m["cost_after"] or 0) - (m["cost_before"] or 0) for m in report["moved"])
         warn("animals_moved", "worksheet",

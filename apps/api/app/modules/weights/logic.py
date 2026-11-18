@@ -33,6 +33,7 @@ APPROACHING_ADG = 0.6      # this up to ON_TARGET_ADG: approaching target; below
 NEARLY_READY_DAYS = 14
 RECENT_WINDOW_DAYS = 30    # "recent" gain looks at the last 30 days of weighings
 STALE_WEIGH_DAYS = 45      # last weighing older than this is flagged
+ADG_ALERT = 2.0            # a daily gain above +2 or below -2 kg/day between the last two weighings raises an alert
 
 THRESHOLDS = {"excellent_above": EXCELLENT_ADG, "on_target_from": ON_TARGET_ADG,
               "approaching_from": APPROACHING_ADG,
@@ -49,6 +50,22 @@ def adg_band(adg: float | None) -> str | None:
     if adg >= APPROACHING_ADG:
         return "approaching_target"
     return "below_target"
+
+
+def adg_alert(points: list[tuple[date, float]], threshold: float = ADG_ALERT) -> dict[str, Any] | None:
+    """The daily gain between the LAST TWO weighings, when it is above +threshold or below -threshold kg/day (a loss that
+    large is as suspicious as a gain that large); otherwise None. Exactly at the threshold is not an alert."""
+    if len(points) < 2:
+        return None
+    (d0, w0), (d1, w1) = points[-2], points[-1]
+    n = (d1 - d0).days
+    if n <= 0:
+        return None
+    adg = (w1 - w0) / n
+    if abs(adg) <= threshold:
+        return None
+    return {"adg": round(adg, 2), "direction": "high" if adg > 0 else "low", "from_date": d0.isoformat(),
+            "to_date": d1.isoformat(), "from_kg": round(w0, 2), "to_kg": round(w1, 2), "days": n, "threshold": threshold}
 
 
 def daily_points(records: list[tuple[date, float]]) -> list[tuple[date, float]]:
@@ -108,7 +125,7 @@ def assess(points: list[tuple[date, float]], target: float | None, start_kg: flo
         "adg_band": adg_band(adg),
         "target_kg": round(target, 2) if target else None,
         "remaining_kg": None, "progress_pct": None, "est_ready_date": None, "days_to_ready": None,
-        "stage": "no_target", "hold_reason": None, "flags": [],
+        "stage": "no_target", "hold_reason": None, "flags": [], "adg_alert": None,
         "start_date": None, "days_on_farm": None, "target_days": None, "days_left": None, "deadline": None,
         "plan_adg": None, "required_adg": None, "schedule": None, "days_late": None,
     }
@@ -122,6 +139,10 @@ def assess(points: list[tuple[date, float]], target: float | None, start_kg: flo
         out["deadline"] = (begin + timedelta(days=int(target_days))).isoformat()
     if last_date and (today - last_date).days > STALE_WEIGH_DAYS:
         out["flags"].append("stale_weight")
+    alert = adg_alert(points)
+    if alert:
+        out["adg_alert"] = alert
+        out["flags"].append("adg_alert")
     if not target:
         return out
     if current is None:

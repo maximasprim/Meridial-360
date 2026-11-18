@@ -340,7 +340,7 @@ function SingleWeighForm({ title = "Record a weight" }: { title?: string | null 
       const r = d.results[0];
       if (r && (r.status === "recorded" || r.status === "updated")) {
         refreshAfterRecording(queryClient);
-        next(t, w, r.flags?.length ? "Saved, but this is a big change from the last weight. Please check it is right." : undefined);
+        next(t, w, r.flags?.length ? (r.flags.some((f) => f.startsWith("adg_alert_")) ? `Saved, but the daily gain since the last weight is ${r.flags.find((f) => f.startsWith("adg_alert_"))!.slice(10)} kg/day, outside ±2. Please check it is right. It is on the dashboard for follow-up.` : "Saved, but this is a big change from the last weight. Please check it is right.") : undefined);
       } else if (r?.status === "already_recorded") {
         setReplace({ tag: t, kg: w, existing: r.existing_kg ?? 0 });
       } else if (r?.status === "unknown_animal") {

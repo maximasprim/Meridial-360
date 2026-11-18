@@ -41,13 +41,21 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
         {showLink && <Link href={`/admin/livestock/${a.id}`} className="ml-auto text-sm text-forest hover:underline">Open animal →</Link>}
       </div>
 
+      {a.adg_alert && (
+        <div role="alert" className="rounded-md border border-clay/30 bg-clay/5 px-3 py-2 text-sm text-clay">
+          Check these weights: the daily gain between {fullDate(a.adg_alert.from_date)} ({kg(a.adg_alert.from_kg)}) and {fullDate(a.adg_alert.to_date)} ({kg(a.adg_alert.to_kg)}) was{" "}
+          <b>{a.adg_alert.adg > 0 ? "+" : ""}{a.adg_alert.adg.toFixed(2)} kg/day</b>, outside ±{a.adg_alert.threshold}. One of them may be a mistake.
+        </div>
+      )}
+
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <Fact label="Entry weight" value={kg(a.start_kg)} hint={a.start_date ? `on ${fullDate(a.start_date)}` : undefined} />
         <Fact label="Latest weight" value={kg(a.current_kg)} hint={a.last_weighed ? `on ${fullDate(a.last_weighed)}` : undefined} />
         <Fact label="Overall gain so far" value={kg(a.gain_kg)} hint={a.start_kg != null && a.current_kg != null ? "since entry" : undefined} />
         <Fact label="ADG" value={adgText(a.adg)} hint={a.overall_adg != null && a.recent_adg != null ? `overall ${a.overall_adg.toFixed(2)}` : undefined} />
         <Fact label="Days on farm" value={a.days_on_farm != null ? `${a.days_on_farm} ${a.days_on_farm === 1 ? "day" : "days"}` : "-"}
-          hint={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined} />
+          hint={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined}
+          extra={a.days_since_weighed != null ? (a.days_since_weighed === 0 ? "Weighed today" : `Last weighed ${a.days_since_weighed} ${a.days_since_weighed === 1 ? "day" : "days"} ago`) : undefined} />
         <Fact label="Still to gain" value={kg(a.remaining_kg)} hint={a.progress_pct != null ? `${a.progress_pct.toFixed(0)}% of the way` : undefined} />
         <Fact label="Expected readiness" value={a.stage === "ready" ? "Now" : a.est_ready_date ? shortDate(a.est_ready_date) : "-"}
           hint={a.days_to_ready != null && a.stage !== "ready" ? (a.days_to_ready === 0 ? "any day now" : `in about ${a.days_to_ready} days`) : undefined} />
@@ -116,12 +124,13 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
   );
 }
 
-function Fact({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Fact({ label, value, hint, extra }: { label: string; value: string; hint?: string; extra?: string }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wider text-muted">{label}</dt>
       <dd className="text-base font-medium text-ink">{value}</dd>
       {hint && <p className="text-xs text-muted">{hint}</p>}
+      {extra && <p className="text-xs text-muted">{extra}</p>}
     </div>
   );
 }

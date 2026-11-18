@@ -51,6 +51,27 @@ async def daily(day: date | None = Query(None), user: User = Depends(require_per
     return await service.daily(db, user.organization_id, day, cycle)
 
 
+class AlertReviewIn(BaseModel):
+    alert_date: date                                   # the "to" date of the alert being reviewed
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.get("/alerts")
+async def alerts(user: User = Depends(require_permission("weights.view")), db: AsyncSession = Depends(get_db),
+                 cycle: CycleSel | None = Depends(cycle_filter)):
+    """Animals whose daily gain between the last two weighings is above +2 or below -2 kg/day and not yet reviewed."""
+    from app.modules.weights import alerts as weight_alerts
+    return await weight_alerts.list_open(db, user.organization_id, cycle)
+
+
+@router.post("/alerts/{animal_id}/review")
+async def review_alert(animal_id: uuid.UUID, req: AlertReviewIn, user: User = Depends(require_permission("weights.targets")),
+                       db: AsyncSession = Depends(get_db)):
+    """Mark an alert as followed up (it stays hidden for that reading; a newer weighing is judged afresh)."""
+    from app.modules.weights import alerts as weight_alerts
+    return await weight_alerts.review(db, user.organization_id, user.id, animal_id, req.alert_date, req.note)
+
+
 @router.get("/animals/{animal_id}")
 async def animal_detail(animal_id: uuid.UUID, user: User = Depends(require_permission("weights.view")),
                         db: AsyncSession = Depends(get_db)):

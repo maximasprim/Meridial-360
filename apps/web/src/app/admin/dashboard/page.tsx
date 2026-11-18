@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { TenantInsights } from "@/components/analytics/tenant-insights";
+import { WeightAlertsCard } from "@/components/weights/weight-alerts-card";
 import { StatCard, ErrorState } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
 import { ApiError } from "@/lib/api";
@@ -83,6 +84,8 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      <WeightAlertsCard />
 
       <TenantInsights />
     </AdminShell>
