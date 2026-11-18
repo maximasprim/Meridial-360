@@ -11,6 +11,9 @@ import {
   adgText, BAND_CHIP, BAND_LABEL, fullDate, kg, SCHEDULE_CHIP, SCHEDULE_LABEL, shortDate, STAGE_CHIP, STAGE_LABEL, type AnimalWeights,
 } from "@/lib/weights-types";
 
+const daysBetween = (from?: string | null, to?: string | null) =>
+  from && to ? Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000)) : null;
+
 /** One animal's performance: stage, gain vs target, projection, charts, and a table of every weighing.
  * Used in the Weights page (in a dialog) and in the Weights tab of the animal's own page. */
 export function AnimalPerformance({ animalId, showLink = false, showTable = true }: { animalId: string; showLink?: boolean; showTable?: boolean }) {
@@ -29,6 +32,7 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
   if (q.isLoading) return <p className="text-sm text-muted">Loading…</p>;
   if (q.error || !q.data) return <ErrorState message={q.error instanceof ApiError ? q.error.message : "Could not load this animal's weights"} />;
   const d = q.data, a = d.animal;
+  const atLastWeigh = daysBetween(a.start_date, a.last_weighed);   // days on the farm from entry to the last weigh day
 
   return (
     <div className="space-y-5">
@@ -52,10 +56,10 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
         <Fact label="Entry weight" value={kg(a.start_kg)} hint={a.start_date ? `on ${fullDate(a.start_date)}` : undefined} />
         <Fact label="Latest weight" value={kg(a.current_kg)} hint={a.last_weighed ? `on ${fullDate(a.last_weighed)}` : undefined} />
         <Fact label="Overall gain so far" value={kg(a.gain_kg)} hint={a.start_kg != null && a.current_kg != null ? "since entry" : undefined} />
-        <Fact label="ADG" value={adgText(a.adg)} hint={a.overall_adg != null && a.recent_adg != null ? `overall ${a.overall_adg.toFixed(2)}` : undefined} />
+        <Fact label="ADG (overall)" value={adgText(a.overall_adg ?? a.adg)} hint={a.recent_adg != null ? `Recent (30 days): ${a.recent_adg.toFixed(2)} kg/day` : undefined} />
         <Fact label="Days on farm" value={a.days_on_farm != null ? `${a.days_on_farm} ${a.days_on_farm === 1 ? "day" : "days"}` : "-"}
-          hint={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined}
-          extra={a.days_since_weighed != null ? (a.days_since_weighed === 0 ? "Weighed today" : `Last weighed ${a.days_since_weighed} ${a.days_since_weighed === 1 ? "day" : "days"} ago`) : undefined} />
+          hint={atLastWeigh != null ? `${atLastWeigh} ${atLastWeigh === 1 ? "day" : "days"} at last weighing` : undefined}
+          extra={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined} />
         <Fact label="Still to gain" value={kg(a.remaining_kg)} hint={a.progress_pct != null ? `${a.progress_pct.toFixed(0)}% of the way` : undefined} />
         <Fact label="Expected readiness" value={a.stage === "ready" ? "Now" : a.est_ready_date ? shortDate(a.est_ready_date) : "-"}
           hint={a.days_to_ready != null && a.stage !== "ready" ? (a.days_to_ready === 0 ? "any day now" : `in about ${a.days_to_ready} days`) : undefined} />
