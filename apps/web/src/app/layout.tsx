@@ -16,7 +16,7 @@ import { SwRegister } from "@/components/sw-register";
 export const metadata: Metadata = {
   title: "Meridial 360 - Farm Management System",
   description: "Livestock farm management, ERP & E-commerce platform",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 
