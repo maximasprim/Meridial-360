@@ -1,7 +1,7 @@
 {
-  "name": "Meridial 360 Farm Management System",
+  "name": "Meridial 360",
   "short_name": "Meridial",
-  "description": "Farm management: weigh animals, record flocks and sales, even with no signal.",
+  "description": "Farm management: weigh animals, manage crop production, record flocks and sales, even with no signal.",
   "start_url": "/admin/feedlot#weigh",
   "scope": "/",
   "display": "standalone",
