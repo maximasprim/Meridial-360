@@ -47,6 +47,10 @@ function isAlreadyInternalPath(pathname: string): boolean {
     pathname.startsWith("/reset-password") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/icon-") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
     pathname === "/favicon.ico"
   );
 }
