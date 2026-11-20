@@ -27,6 +27,7 @@ class FarmProfile(Base, UUIDPKMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     established_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hero_layout: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 'classic' | 'focus' | None = platform default
 
 
 class Testimonial(Base, UUIDPKMixin, TimestampMixin):

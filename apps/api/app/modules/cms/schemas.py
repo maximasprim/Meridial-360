@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -15,7 +16,7 @@ class FarmProfileUpdate(BaseModel):
     email: EmailStr | None = None
     website: str | None = None
     established_year: int | None = None
-
+    hero_layout: Literal["classic", "focus"] | None = None
 
 class FarmProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -29,6 +30,7 @@ class FarmProfileOut(BaseModel):
     email: str | None
     website: str | None
     established_year: int | None
+    hero_layout: str | None = None
 
 
 class TestimonialCreate(BaseModel):

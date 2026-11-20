@@ -46,6 +46,11 @@ export default function CmsPage() {
   );
 }
 
+const HERO_OPTIONS = [
+  { value: "classic", title: "Classic", text: "Banner with two promo tiles beside it." },
+  { value: "focus", title: "Focus", text: "Full-width banners behind a transparent menu, the farm name set large, reviews and contact buttons." },
+] as const;
+
 function ProfileTab() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Partial<FarmProfile>>({});
@@ -94,6 +99,27 @@ function ProfileTab() {
             onChange={(e) => setForm((f) => ({ ...f, established_year: e.target.value ? Number(e.target.value) : null }))}
           />
         </div>
+        <div>
+          <p className="mb-2 text-sm font-medium text-ink">Shop home hero</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {HERO_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, hero_layout: o.value }))}
+                className={clsx(
+                  "rounded border p-3 text-left text-sm transition",
+                  form.hero_layout === o.value ? "border-forest bg-forest/5 ring-1 ring-forest" : "border-hairline hover:border-forest/50",
+                )}
+              >
+                <span className="block font-semibold text-ink">{o.title}</span>
+                <span className="mt-1 block text-muted">{o.text}</span>
+              </button>
+            ))}
+          </div>
+          {!form.hero_layout && <p className="mt-2 text-xs text-muted">Not chosen yet - your shop uses the platform default.</p>}
+        </div>
+
         <Button type="submit" disabled={save.isPending} className="w-full">
           {save.isPending ? "Saving…" : "Save profile"}
         </Button>

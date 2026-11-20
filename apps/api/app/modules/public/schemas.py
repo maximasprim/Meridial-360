@@ -87,6 +87,7 @@ class PublicFarmProfileOut(BaseModel):
     email: str | None
     website: str | None
     established_year: int | None
+    hero_layout: str | None = None
 
 
 class PublicTestimonialOut(BaseModel):

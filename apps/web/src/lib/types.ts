@@ -485,6 +485,7 @@ export interface PublicFarmProfile {
   email: string | null;
   website: string | null;
   established_year: number | null;
+  hero_layout?: "classic" | "focus" | null;
 }
 
 export interface PublicOrderConfirmation {
@@ -827,6 +828,7 @@ export interface FarmProfile {
   email: string | null;
   website: string | null;
   established_year: number | null;
+  hero_layout?: "classic" | "focus" | null;
 }
 
 export interface Testimonial {
