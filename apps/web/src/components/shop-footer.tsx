@@ -80,7 +80,7 @@ export function ShopFooter({ orgSlug }: { orgSlug: string }) {
       </div>
 
       <div className="border-t border-paper/15">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-paper/60 sm:px-6">
+        <div className="mx-auto flex max-w-8xl flex-wrap items-center justify-between gap-2 px-3 py-4 text-xs text-paper/60">
           <p>&copy; {new Date().getFullYear()} {data?.farm_name ?? "Farm"}. All rights reserved.</p>
           <p>Store powered by Meridial 360</p>
         </div>
