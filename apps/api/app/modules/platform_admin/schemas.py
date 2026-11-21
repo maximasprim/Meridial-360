@@ -125,3 +125,19 @@ class PublicStoreStatusOut(BaseModel):
 class PublicStoreUpdate(BaseModel):
     mode: Literal["package", "on", "off"]
     reason: str | None = Field(default=None, max_length=300)
+
+
+class AppBrandingOut(BaseModel):
+    """Whether the staff app (installed app + sign-in page) and the public shop (installed app) present the farm's own
+    name and logo (True) or the platform's (False). has_icon: an uploaded logo exists to build installed-app icons from."""
+    staff_tenant_branding: bool
+    shop_tenant_branding: bool
+    farm_name: str | None = None
+    has_logo: bool = False
+    has_icon: bool = False
+
+
+class AppBrandingUpdate(BaseModel):
+    """Omitted = unchanged."""
+    staff: bool | None = None
+    shop: bool | None = None

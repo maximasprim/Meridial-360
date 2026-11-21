@@ -193,6 +193,27 @@ async def set_org_public_store(
     return await service.set_public_store_mode(db, org_id, admin.id, req)
 
 
+# ------------------------------------------------------------ app branding --
+@router.get("/organizations/{org_id}/app-branding", response_model=schemas.AppBrandingOut)
+async def get_org_app_branding(
+    org_id: uuid.UUID,
+    admin: PlatformAdmin = Depends(get_current_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.get_app_branding(db, org_id)
+
+
+@router.patch("/organizations/{org_id}/app-branding", response_model=schemas.AppBrandingOut)
+async def set_org_app_branding(
+    org_id: uuid.UUID,
+    req: schemas.AppBrandingUpdate,
+    admin: PlatformAdmin = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Staff app / public shop: show the platform's name and logo (False) or the farm's own (True)."""
+    return await service.set_app_branding(db, org_id, admin.id, req)
+
+
 # ------------------------------------------------------ catalog visibility --
 # Superadmin control over what a tenant sees/can use (spec: "superadmin
 # controls what tenants want visible"). Reference-list endpoints are plain

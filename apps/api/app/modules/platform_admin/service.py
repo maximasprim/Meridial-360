@@ -12,6 +12,7 @@ from app.modules.billing.models import Subscription, SubscriptionTier
 from app.modules.billing.service import check_tier_covers_current_usage, ensure_default_tiers, get_or_create_subscription
 from app.modules.billing.public_store import public_store_state
 from app.modules.catalog.service import get_or_create_settings as get_or_create_catalog_settings
+from app.modules.public import branding as public_branding
 from app.modules.platform_admin.models import PlatformAdmin, PlatformAdminPasswordResetToken
 from app.modules.platform_admin.security import create_platform_admin_token
 from app.modules.platform_admin import schemas
@@ -215,6 +216,38 @@ async def set_public_store_mode(
     )
     await db.commit()
     return schemas.PublicStoreStatusOut(**after)
+
+
+async def get_app_branding(db: AsyncSession, org_id: uuid.UUID) -> schemas.AppBrandingOut:
+    org = await get_organization(db, org_id)
+    staff, shop = await public_branding.get_flags(db, org_id)
+    name, logo = await public_branding.farm_name_and_logo(db, org)
+    return schemas.AppBrandingOut(
+        staff_tenant_branding=staff, shop_tenant_branding=shop, farm_name=name,
+        has_logo=bool(logo.logo_url), has_icon=logo.image_id is not None,
+    )
+
+
+async def set_app_branding(
+    db: AsyncSession, org_id: uuid.UUID, admin_id: uuid.UUID, req: schemas.AppBrandingUpdate,
+) -> schemas.AppBrandingOut:
+    """Choose, separately for the staff app and the public shop, whether the installed app (and for staff the sign-in
+    page) shows the platform's identity or the farm's own. Audited in the shared audit log."""
+    await get_organization(db, org_id)
+    before = await public_branding.get_flags(db, org_id)
+    settings = await get_or_create_catalog_settings(db, org_id)
+    if req.staff is not None:
+        settings.staff_branding_tenant = req.staff
+    if req.shop is not None:
+        settings.shop_branding_tenant = req.shop
+    await db.flush()
+    after = await public_branding.get_flags(db, org_id)
+    await record_admin_action(
+        db, org_id, admin_id, action="organization.app_branding_change", entity_type="app_branding", entity_id=settings.id,
+        previous_value={"staff": before[0], "shop": before[1]}, new_value={"staff": after[0], "shop": after[1]},
+    )
+    await db.commit()
+    return await get_app_branding(db, org_id)
 
 
 async def dashboard_stats(db: AsyncSession) -> schemas.PlatformDashboardStats:

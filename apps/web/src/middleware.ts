@@ -49,6 +49,7 @@ function isAlreadyInternalPath(pathname: string): boolean {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/images/") ||
     pathname.startsWith("/icon-") ||
+    pathname.startsWith("/app-manifest") ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/sw.js" ||
     pathname === "/favicon.ico"

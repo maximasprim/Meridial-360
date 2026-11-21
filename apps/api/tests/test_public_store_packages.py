@@ -231,3 +231,138 @@ async def test_store_status_endpoint_is_public_and_always_200(client, engine):
     assert r.status_code == 200 and r.json() == {"enabled": False}  # 200, not the 403 other public routes give
 
     assert (await client.get("/api/v1/public/no-such-farm/store-status")).status_code == 404
+
+
+# ------------------------------------------------------------------ app / sign-in branding --
+import io  # noqa: E402
+
+from PIL import Image  # noqa: E402
+
+
+LOGO_BG = (30, 120, 60)
+
+
+def _logo_png() -> bytes:
+    """A wide logo: a white disc on a plain green background (so the icon's fill should come out green)."""
+    from PIL import ImageDraw
+
+    img = Image.new("RGB", (400, 200), LOGO_BG)
+    ImageDraw.Draw(img).ellipse([130, 30, 270, 170], fill=(255, 255, 255))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _branding_url(org_id):
+    return f"/api/v1/platform/organizations/{org_id}/app-branding"
+
+
+async def _upload_logo(client, tenant_headers):
+    up = await client.post("/api/v1/cms/images?kind=logo", headers=tenant_headers, files={"file": ("logo.png", _logo_png(), "image/png")})
+    assert up.status_code == 201, up.text
+    image_id = up.json()["id"]
+    r = await client.put("/api/v1/cms/profile", headers=tenant_headers, json={
+        "farm_name": "Branded Farm", "logo_url": f"http://localhost:8000/api/v1/media/site-images/{image_id}",
+    })
+    assert r.status_code == 200, r.text
+
+
+async def test_branding_defaults_to_platform_and_reveals_nothing(client, engine):
+    org_id, slug, headers, tenant_headers = await _setup(client, engine)
+    await _upload_logo(client, tenant_headers)
+
+    status = (await client.get(_branding_url(org_id), headers=headers)).json()
+    assert status["staff_tenant_branding"] is False and status["shop_tenant_branding"] is False
+    assert status["has_logo"] is True and status["has_icon"] is True
+
+    public = (await client.get(f"/api/v1/public/{slug}/branding")).json()
+    assert public["staff_branding"] is False and public["shop_branding"] is False
+    assert public["farm_name"] is None and public["logo_url"] is None  # nothing exposed while on platform branding
+    assert (await client.get(f"/api/v1/public/{slug}/app-icon/192.png")).status_code == 404
+    store = (await client.get(f"/api/v1/public/{slug}/store-status")).json()
+    assert store["shop_branding"] is False
+    assert (await client.get("/api/v1/public/no-such-farm/branding")).status_code == 404
+
+
+async def test_staff_and_shop_branding_are_independent(client, engine):
+    org_id, slug, headers, tenant_headers = await _setup(client, engine)
+    await _upload_logo(client, tenant_headers)
+
+    r = await client.patch(_branding_url(org_id), json={"staff": True}, headers=headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["staff_tenant_branding"] is True and r.json()["shop_tenant_branding"] is False
+    public = (await client.get(f"/api/v1/public/{slug}/branding")).json()
+    assert public["staff_branding"] is True and public["shop_branding"] is False
+    assert public["farm_name"] == "Branded Farm" and public["has_icon"] is True and public["icon_version"]
+    assert (await client.get(f"/api/v1/public/{slug}/store-status")).json()["shop_branding"] is False
+
+    r = await client.patch(_branding_url(org_id), json={"shop": True}, headers=headers)  # omitted staff stays as it was
+    assert r.json()["staff_tenant_branding"] is True and r.json()["shop_tenant_branding"] is True
+    store = (await client.get(f"/api/v1/public/{slug}/store-status")).json()
+    assert store["shop_branding"] is True and store["has_icon"] is True and store["icon_version"]
+
+    r = await client.patch(_branding_url(org_id), json={"staff": False}, headers=headers)
+    assert r.json()["staff_tenant_branding"] is False and r.json()["shop_tenant_branding"] is True
+
+
+async def test_app_icons_are_the_full_family_made_from_the_logo(client, engine):
+    org_id, slug, headers, tenant_headers = await _setup(client, engine)
+    await _upload_logo(client, tenant_headers)
+    await client.patch(_branding_url(org_id), json={"staff": True}, headers=headers)
+
+    expected = {
+        "192.png": (192, "any"), "256.png": (256, "any"), "384.png": (384, "any"), "512.png": (512, "any"),
+        "maskable-192.png": (192, "maskable"), "maskable-512.png": (512, "maskable"),
+        "apple-180.png": (180, "apple"), "favicon-32.png": (32, "favicon"),
+    }
+    for name, (size, kind) in expected.items():
+        r = await client.get(f"/api/v1/public/{slug}/app-icon/{name}")
+        assert r.status_code == 200, (name, r.text)
+        assert r.headers["content-type"] == "image/png"
+        icon = Image.open(io.BytesIO(r.content))
+        assert icon.size == (size, size), name
+        rgba = icon.convert("RGBA")
+        centre = rgba.getpixel((size // 2, size // 2))
+        assert centre[:3] == (255, 255, 255), (name, centre)  # the logo's white disc sits in the middle
+        if kind in ("any", "favicon"):
+            assert rgba.getpixel((0, 0))[3] == 0, name  # rounded square: transparent corners, like the platform icon
+        else:
+            assert rgba.getpixel((0, 0)) == (*LOGO_BG, 255), name  # full-bleed square in the logo's own background colour
+        if size >= 180:
+            assert rgba.getpixel((size // 2, 4))[:3] == LOGO_BG, name  # the fill is the logo's edge colour, so no box shows
+
+    for bad in ("64.png", "maskable-256.png", "apple-192.png", "192.jpg"):
+        assert (await client.get(f"/api/v1/public/{slug}/app-icon/{bad}")).status_code == 422  # only the family above exists
+
+
+async def test_branding_without_an_uploaded_logo_has_no_icon_and_falls_back(client, engine):
+    org_id, slug, headers, _ = await _setup(client, engine)
+    await client.patch(_branding_url(org_id), json={"staff": True, "shop": True}, headers=headers)
+    public = (await client.get(f"/api/v1/public/{slug}/branding")).json()
+    assert public["staff_branding"] is True and public["farm_name"] and public["has_icon"] is False
+    assert (await client.get(f"/api/v1/public/{slug}/app-icon/192.png")).status_code == 404  # web app uses the platform icon
+
+
+async def test_branding_works_while_the_public_store_is_off(client, engine):
+    org_id, slug, headers, _ = await _setup(client, engine)
+    await client.patch(_branding_url(org_id), json={"staff": True}, headers=headers)
+    await client.patch(_store_url(org_id), json={"mode": "off"}, headers=headers)
+    assert (await client.get(f"/api/v1/public/{slug}/profile")).status_code == 403
+    assert (await client.get(f"/api/v1/public/{slug}/branding")).status_code == 200  # the sign-in page still brands itself
+
+
+async def test_app_branding_change_is_audited_and_permissioned(client, engine):
+    from app.modules.identity.models import AuditLog
+
+    org_id, _, headers, tenant_headers = await _setup(client, engine)
+    await client.patch(_branding_url(org_id), json={"staff": True}, headers=headers)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+    async with SessionLocal() as session:
+        rows = (await session.execute(
+            select(AuditLog).where(AuditLog.organization_id == uuid.UUID(org_id), AuditLog.action == "organization.app_branding_change")
+        )).scalars().all()
+    assert len(rows) == 1 and rows[0].new_value == {"staff": True, "shop": False}
+
+    assert (await client.get(_branding_url(org_id), headers=tenant_headers)).status_code in (401, 403)
+    assert (await client.patch(_branding_url(org_id), json={"staff": True}, headers=tenant_headers)).status_code in (401, 403)
+    assert (await client.patch(_branding_url(uuid.uuid4()), json={"staff": True}, headers=headers)).status_code == 404

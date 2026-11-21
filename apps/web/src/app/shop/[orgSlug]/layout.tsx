@@ -6,25 +6,45 @@ import type { PublicFarmProfile } from "@/lib/types";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+type StoreStatus = {
+  /** Is the public store switched on? */
+  enabled: boolean;
+  /** A superadmin chose the farm's own name + logo for the installed shop app. */
+  shop_branding: boolean;
+  /** An uploaded logo exists, so the API can serve installed-app icons made from it. */
+  has_icon: boolean;
+  icon_version: string | null;
+};
+
+const DEFAULT_STATUS: StoreStatus = { enabled: true, shop_branding: false, has_icon: false, icon_version: null };
+
 type ProfileResult = {
   profile: PublicFarmProfile | null;
   /** True when this tenant's public store is switched off. */
   unavailable: boolean;
 };
 
-/** Is the store switched on? A tiny endpoint that answers 200 either way, cached for 15s: Next.js only stores 200
- * responses, so asking the profile endpoint (which answers 403 when the store is off) would keep serving a stale
- * "store is on" copy. Anything unexpected (unknown farm, API slow or down) counts as "on" so the page behaves as before. */
-async function getStoreEnabled(orgSlug: string): Promise<boolean> {
+type LoadResult = ProfileResult & { status: StoreStatus };
+
+/** One tiny endpoint that answers 200 either way, cached for 15s: Next.js only stores 200 responses, so asking the
+ * profile endpoint (which answers 403 when the store is off) would keep serving a stale "store is on" copy. Anything
+ * unexpected (unknown farm, API slow or down) counts as "on, platform branding" so the page behaves as before. */
+async function getStoreStatus(orgSlug: string): Promise<StoreStatus> {
   try {
     const res = await fetch(`${API}/api/v1/public/${orgSlug}/store-status`, {
       next: { revalidate: 15 },
       signal: AbortSignal.timeout(4000),
     });
-    if (!res.ok) return true;
-    return ((await res.json()) as { enabled?: boolean }).enabled !== false;
+    if (!res.ok) return DEFAULT_STATUS;
+    const data = (await res.json()) as Partial<StoreStatus>;
+    return {
+      enabled: data.enabled !== false,
+      shop_branding: data.shop_branding === true,
+      has_icon: data.has_icon === true,
+      icon_version: data.icon_version ?? null,
+    };
   } catch {
-    return true;
+    return DEFAULT_STATUS;
   }
 }
 
@@ -44,19 +64,41 @@ async function getProfile(orgSlug: string): Promise<ProfileResult> {
   }
 }
 
-async function load(orgSlug: string): Promise<ProfileResult> {
-  if (!(await getStoreEnabled(orgSlug))) return { profile: null, unavailable: true };
-  return getProfile(orgSlug);
+async function load(orgSlug: string): Promise<LoadResult> {
+  const status = await getStoreStatus(orgSlug);
+  if (!status.enabled) return { profile: null, unavailable: true, status };
+  return { ...(await getProfile(orgSlug)), status };
 }
 
-/** Puts the farm's name in the tab title and description in the HTML itself, from the first paint. */
+/** Puts the farm's name in the tab title and description in the HTML itself, from the first paint. When a superadmin
+ * switched on the farm's own branding for the shop, it also points the page at the farm's installed-app manifest, icon
+ * and home-screen title (otherwise the platform's, set in the root layout, are left alone). */
 export async function generateMetadata({ params }: { params: { orgSlug: string } }): Promise<Metadata> {
-  const { profile, unavailable } = await load(params.orgSlug);
+  const { profile, unavailable, status } = await load(params.orgSlug);
   if (unavailable) return { title: "Store unavailable", robots: { index: false, follow: false } };
   if (!profile) return {};
+  const iconBase = `${API}/api/v1/public/${params.orgSlug}/app-icon`;
+  const v = status.icon_version ? `?v=${status.icon_version}` : "";
   return {
     title: { default: profile.farm_name, template: `%s | ${profile.farm_name}` },
     description: profile.tagline ?? undefined,
+    ...(status.shop_branding
+      ? {
+          manifest: `/app-manifest/shop/${params.orgSlug}`,
+          appleWebApp: { capable: true, title: profile.farm_name },
+          ...(status.has_icon
+            ? {
+                icons: {
+                  icon: [
+                    { url: `${iconBase}/favicon-32.png${v}`, sizes: "32x32", type: "image/png" },
+                    { url: `${iconBase}/192.png${v}`, sizes: "192x192", type: "image/png" },
+                  ],
+                  apple: [{ url: `${iconBase}/apple-180.png${v}`, sizes: "180x180", type: "image/png" }],
+                },
+              }
+            : {}),
+        }
+      : {}),
   };
 }
 

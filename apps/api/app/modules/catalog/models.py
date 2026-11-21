@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, UniqueConstraint, false
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,3 +43,7 @@ class TenantCatalogSettings(Base, UUIDPKMixin, TimestampMixin):
     hidden_menus: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     # Per-tenant override of the package's public-store rule: None = follow the package, True = force on, False = force off.
     public_store_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Installed-app / sign-in branding, set by a superadmin per tenant and per surface: False = the platform's name and
+    # icon (the default, so nothing changes), True = the farm's own name and logo.
+    staff_branding_tenant: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    shop_branding_tenant: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())

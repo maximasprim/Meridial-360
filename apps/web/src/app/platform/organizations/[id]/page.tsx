@@ -8,6 +8,7 @@ import { PlatformShell } from "@/components/platform-shell";
 import { DeleteOrganizationDialog } from "@/components/platform-delete-organization-dialog";
 import { PlatformWorkspacePanel } from "@/components/platform-workspace-panel";
 import { PublicStoreCard } from "@/components/platform-public-store-card";
+import { PlatformAppBrandingCard } from "@/components/platform-app-branding-card";
 import { Card, Button, ErrorState } from "@/components/ui";
 import { platformApiFetch, PlatformApiError } from "@/lib/platform-api";
 import { usePlatformMe } from "@/lib/use-platform-auth";
@@ -221,6 +222,10 @@ export default function OrganizationDetailPage() {
 
       <div className="mt-4">
         <PublicStoreCard orgId={org.id} canWrite={canWrite} />
+      </div>
+
+      <div className="mt-4">
+        <PlatformAppBrandingCard orgId={org.id} canWrite={canWrite} />
       </div>
 
       <Link

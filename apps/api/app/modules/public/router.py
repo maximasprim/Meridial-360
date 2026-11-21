@@ -1,12 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.middleware import public_order_limit, public_payment_limit
-from app.modules.public import schemas, service
+from app.modules.public import branding, schemas, service
 from app.modules.commerce import schemas as commerce_schemas
 from app.modules.payments import schemas as payment_schemas
 
@@ -70,6 +70,24 @@ async def public_store_status(org_slug: str, db: AsyncSession = Depends(get_db))
     (unlike every other public route, which answers 403 when the store is off), so Next.js can cache it for a few
     seconds - it only caches successful responses."""
     return await service.get_store_status(db, org_slug)
+
+
+@router.get("/branding", response_model=schemas.BrandingOut)
+async def public_branding(org_slug: str, db: AsyncSession = Depends(get_db)):
+    """Name / logo for the sign-in page and the installed-app manifests, when a superadmin switched tenant branding
+    on for this farm. Not part of the store, so it answers even while the public store is off."""
+    return await branding.get_branding(db, org_slug)
+
+
+@router.get("/app-icon/{icon_name}")
+async def public_app_icon(
+    org_slug: str,
+    icon_name: str = Path(pattern=r"^(192|256|384|512|maskable-192|maskable-512|apple-180|favicon-32)\.png$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """The farm's logo as an installed-app / home-screen / tab icon (404 unless branding is on and a logo was uploaded)."""
+    png = await branding.get_app_icon_png(db, org_slug, icon_name)
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/listings", response_model=list[schemas.PublicListingOut])

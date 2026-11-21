@@ -177,5 +177,20 @@ class ResolveDomainOut(BaseModel):
 
 
 class StoreStatusOut(BaseModel):
-    """Is this farm's public store switched on? Answered with 200 either way so the web app can cache it."""
+    """Is this farm's public store switched on? Answered with 200 either way so the web app can cache it. Also says
+    whether the shop should present itself as the farm's own installed app (name + icon), see BrandingOut."""
     enabled: bool
+    shop_branding: bool = False
+    has_icon: bool = False
+    icon_version: str | None = None
+
+
+class BrandingOut(BaseModel):
+    """What the web app needs to brand itself for a tenant. farm_name / logo_url are only filled when at least one of
+    the tenant's two branding switches is on. has_icon: an uploaded logo exists, so /app-icon/{name} can serve one."""
+    staff_branding: bool
+    shop_branding: bool
+    farm_name: str | None = None
+    logo_url: str | None = None
+    has_icon: bool = False
+    icon_version: str | None = None

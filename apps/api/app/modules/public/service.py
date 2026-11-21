@@ -19,7 +19,7 @@ from app.modules.crops.models import CropPlanting
 from app.modules.farm.models import Farm
 from app.modules.customers.service import find_or_create_by_contact
 from app.modules.cms import service as cms_service
-from app.modules.public import schemas
+from app.modules.public import branding, schemas
 
 
 async def get_org_by_slug(db: AsyncSession, org_slug: str, *, require_store: bool = True) -> Organization:
@@ -38,7 +38,15 @@ async def get_org_by_slug(db: AsyncSession, org_slug: str, *, require_store: boo
 async def get_store_status(db: AsyncSession, org_slug: str) -> schemas.StoreStatusOut:
     """404 only for an unknown farm; otherwise 200 with enabled true/false (never the store-unavailable 403)."""
     org = await get_org_by_slug(db, org_slug, require_store=False)
-    return schemas.StoreStatusOut(enabled=await is_public_store_enabled(db, org.id))
+    enabled = await is_public_store_enabled(db, org.id)
+    _, shop_branding = await branding.get_flags(db, org.id)
+    if not shop_branding:
+        return schemas.StoreStatusOut(enabled=enabled)
+    _, logo = await branding.farm_name_and_logo(db, org)
+    return schemas.StoreStatusOut(
+        enabled=enabled, shop_branding=True, has_icon=logo.image_id is not None,
+        icon_version=logo.image_id.hex[:8] if logo.image_id else None,
+    )
 
 
 def _image_refs(refs: list[ImageRef] | None) -> list[schemas.PublicListingImageOut]:

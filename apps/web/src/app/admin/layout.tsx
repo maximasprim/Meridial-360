@@ -1,4 +1,5 @@
 import { AdminShellLayout } from "@/components/admin-shell";
+import { StaffBranding } from "@/components/staff-branding";
 
 /**
  * One persistent shell for every /admin page. Without this, each page created its own shell, so the
@@ -6,5 +7,10 @@ import { AdminShellLayout } from "@/components/admin-shell";
  * Pages still wrap themselves in <AdminShell>; inside this layout that is a no-op.
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShellLayout>{children}</AdminShellLayout>;
+  return (
+    <>
+      <StaffBranding />
+      <AdminShellLayout>{children}</AdminShellLayout>
+    </>
+  );
 }

@@ -127,3 +127,11 @@ export interface PublicStoreStatus {
   package_slug: string | null;
   package_name: string | null;
 }
+
+export interface AppBrandingStatus {
+  staff_tenant_branding: boolean;
+  shop_tenant_branding: boolean;
+  farm_name: string | null;
+  has_logo: boolean;
+  has_icon: boolean;
+}
