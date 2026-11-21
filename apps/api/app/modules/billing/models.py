@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Numeric, Boolean, Integer, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Numeric, Boolean, Integer, DateTime, ForeignKey, UniqueConstraint, true
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,9 @@ class SubscriptionTier(Base, UUIDPKMixin, TimestampMixin):
     max_animals: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None = unlimited
     max_crop_plantings: Mapped[int | None] = mapped_column(Integer, nullable=True)  # None = unlimited
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)  # False = no longer offered to new subscribers
+    # Does this package include the public store? False = tenants on it have no public storefront (a superadmin can still
+    # override per tenant, see TenantCatalogSettings.public_store_enabled). Defaults True: nothing changes until edited.
+    public_store_included: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Subscription(Base, UUIDPKMixin, TimestampMixin):

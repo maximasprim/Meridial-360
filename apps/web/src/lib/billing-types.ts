@@ -11,6 +11,7 @@ export interface SubscriptionTierOut {
   max_users: number | null;
   max_animals: number | null;
   max_crop_plantings?: number | null;
+  public_store_included?: boolean;
 }
 
 export interface SubscriptionOut {

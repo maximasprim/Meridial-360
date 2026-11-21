@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from app.core.emailnorm import NormalizedEmail
 from pydantic import BaseModel, Field
@@ -109,3 +110,18 @@ class LifecycleCheckResult(BaseModel):
     marked_past_due: int
     marked_cancelled: int
     skipped: bool = False
+
+
+class PublicStoreStatusOut(BaseModel):
+    """Whether a tenant's public store works, and why. mode: 'package' (follows the billing package), 'on' or 'off'
+    (a superadmin override). `enabled` is the effective result."""
+    mode: Literal["package", "on", "off"]
+    enabled: bool
+    package_allows: bool
+    package_slug: str | None = None
+    package_name: str | None = None
+
+
+class PublicStoreUpdate(BaseModel):
+    mode: Literal["package", "on", "off"]
+    reason: str | None = Field(default=None, max_length=300)

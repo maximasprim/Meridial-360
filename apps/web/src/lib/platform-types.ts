@@ -32,6 +32,7 @@ export interface PlatformPlan {
   max_users: number | null;
   max_animals: number | null;
   max_crop_plantings?: number | null;
+  public_store_included?: boolean;
 }
 
 export interface PlatformDashboardStats {
@@ -104,4 +105,25 @@ export interface TenantCatalogSettingsUpdate {
   clear_crop_type_restriction?: boolean;
   /** Menus to hide; [] shows everything again. Omit to leave unchanged. */
   hidden_menus?: string[];
+}
+
+export interface PlatformPackage {
+  id: string;
+  name: string;
+  slug: string;
+  monthly_price_kes: number;
+  max_users: number | null;
+  max_animals: number | null;
+  max_crop_plantings: number | null;
+  is_active: boolean;
+  public_store_included: boolean;
+  organization_count: number;
+}
+
+export interface PublicStoreStatus {
+  mode: "package" | "on" | "off";
+  enabled: boolean;
+  package_allows: boolean;
+  package_slug: string | null;
+  package_name: string | null;
 }

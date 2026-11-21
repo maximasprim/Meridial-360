@@ -4,7 +4,7 @@ import Link from "next/link";
 import { createContext, useContext } from "react";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
-import { LayoutDashboard, BarChart3, Building2, ShieldCheck, LogOut } from "lucide-react";
+import { LayoutDashboard, BarChart3, Building2, Package, ShieldCheck, LogOut } from "lucide-react";
 import { useRequirePlatformAuth, usePlatformLogout } from "@/lib/use-platform-auth";
 import { ShellFrame } from "@/components/shell-frame";
 
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/platform/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/platform/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/platform/organizations", label: "Organizations", icon: Building2 },
+  { href: "/platform/packages", label: "Packages", icon: Package },
   { href: "/platform/admins", label: "Admins", icon: ShieldCheck },
 ];
 

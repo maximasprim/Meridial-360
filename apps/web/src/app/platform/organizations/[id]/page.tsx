@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PlatformShell } from "@/components/platform-shell";
 import { DeleteOrganizationDialog } from "@/components/platform-delete-organization-dialog";
 import { PlatformWorkspacePanel } from "@/components/platform-workspace-panel";
+import { PublicStoreCard } from "@/components/platform-public-store-card";
 import { Card, Button, ErrorState } from "@/components/ui";
 import { platformApiFetch, PlatformApiError } from "@/lib/platform-api";
 import { usePlatformMe } from "@/lib/use-platform-auth";
@@ -217,6 +218,10 @@ export default function OrganizationDetailPage() {
           {planMsg && <p className="mt-2 text-sm text-forest">{planMsg}</p>}
         </Card>
       )}
+
+      <div className="mt-4">
+        <PublicStoreCard orgId={org.id} canWrite={canWrite} />
+      </div>
 
       <Link
         href={`/platform/organizations/${org.id}/catalog`}

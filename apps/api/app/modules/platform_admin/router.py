@@ -10,7 +10,7 @@ from app.core.middleware import rate_limit_auth
 from app.modules.platform_admin import analytics as platform_analytics_service, analytics_schemas, schemas, service
 from app.modules.platform_admin.deps import get_current_platform_admin, require_write_access
 from app.modules.platform_admin.models import PlatformAdmin
-from app.modules.billing import schemas as billing_schemas, service as billing_service
+from app.modules.billing import schemas as billing_schemas, service as billing_service, packages as billing_packages
 
 # livestock reused as-is, unmodified, to prove the cross-tenant CRUD pattern -
 # see the module docstring below for why this generalizes to every other
@@ -139,6 +139,58 @@ async def set_organization_subscription(
     """Set a tenant's plan directly, without a payment. Rejected (400) when the tenant's current users/animals
     already exceed the new plan's limits; audited as 'organization.subscription_change'."""
     return await service.set_organization_subscription(db, org_id, admin.id, req)
+
+
+# ------------------------------------------------- billing package management --
+# Create / edit the packages (subscription tiers). Reads: any platform admin (viewer included); writes: superadmin only.
+@router.get("/billing/packages", response_model=list[billing_schemas.PackageOut])
+async def list_billing_packages(
+    admin: PlatformAdmin = Depends(get_current_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Every package, including switched-off ones, with the number of tenants on each."""
+    return await billing_packages.list_packages(db)
+
+
+@router.post("/billing/packages", response_model=billing_schemas.PackageOut, status_code=201)
+async def create_billing_package(
+    req: billing_schemas.PackageCreate,
+    admin: PlatformAdmin = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+):
+    return await billing_packages.create_package(db, req)
+
+
+@router.patch("/billing/packages/{package_id}", response_model=billing_schemas.PackageOut)
+async def update_billing_package(
+    package_id: uuid.UUID,
+    req: billing_schemas.PackageUpdate,
+    admin: PlatformAdmin = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit price, limits, name, whether it is offered, and whether it includes the public store."""
+    return await billing_packages.update_package(db, package_id, req)
+
+
+# ------------------------------------------------------------ public store --
+@router.get("/organizations/{org_id}/public-store", response_model=schemas.PublicStoreStatusOut)
+async def get_org_public_store(
+    org_id: uuid.UUID,
+    admin: PlatformAdmin = Depends(get_current_platform_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await service.get_public_store_status(db, org_id)
+
+
+@router.patch("/organizations/{org_id}/public-store", response_model=schemas.PublicStoreStatusOut)
+async def set_org_public_store(
+    org_id: uuid.UUID,
+    req: schemas.PublicStoreUpdate,
+    admin: PlatformAdmin = Depends(require_write_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Activate / deactivate one tenant's public store (or hand the decision back to its package)."""
+    return await service.set_public_store_mode(db, org_id, admin.id, req)
 
 
 # ------------------------------------------------------ catalog visibility --

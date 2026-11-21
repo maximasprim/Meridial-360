@@ -41,3 +41,5 @@ class TenantCatalogSettings(Base, UUIDPKMixin, TimestampMixin):
     # Sidebar entries (paths like "/admin/fuel") a platform admin has hidden for this tenant. None or [] = nothing
     # hidden, so every existing organization is unaffected. See catalog/menus.py.
     hidden_menus: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Per-tenant override of the package's public-store rule: None = follow the package, True = force on, False = force off.
+    public_store_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

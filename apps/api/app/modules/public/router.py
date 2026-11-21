@@ -85,7 +85,8 @@ async def public_animal_qr_profile(org_slug: str, animal_id: uuid.UUID, db: Asyn
     required (same as every other endpoint in this router); the response
     shape is the narrow allowlist AnimalQRProfileOut, not the full staff
     AnimalOut."""
-    org = await service.get_org_by_slug(db, org_slug)
+    # The tag page is an operational feature, not the storefront, so it keeps working when the public store is off.
+    org = await service.get_org_by_slug(db, org_slug, require_store=False)
     return await service.get_animal_qr_profile(db, org.id, animal_id)
 
 

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.identity.models import Organization
+from app.modules.billing.public_store import STORE_UNAVAILABLE_MESSAGE, is_public_store_enabled
 from app.modules.commerce.image_service import ImageRef, image_refs_by_listing
 from app.modules.commerce.models import Listing, Order
 from app.modules.commerce import schemas as commerce_schemas
@@ -21,11 +22,16 @@ from app.modules.cms import service as cms_service
 from app.modules.public import schemas
 
 
-async def get_org_by_slug(db: AsyncSession, org_slug: str) -> Organization:
+async def get_org_by_slug(db: AsyncSession, org_slug: str, *, require_store: bool = True) -> Organization:
+    """Every public (storefront) route resolves its tenant here, so this is the single gate for the public store: a
+    tenant whose store is switched off (by its package or by a superadmin) gets 403 on all of them. `require_store=False`
+    is for the few public routes that are not the store itself (the animal QR tag page)."""
     result = await db.execute(select(Organization).where(Organization.slug == org_slug))
     org = result.scalar_one_or_none()
     if not org:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Farm not found")
+    if require_store and not await is_public_store_enabled(db, org.id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, STORE_UNAVAILABLE_MESSAGE)
     return org
 
 

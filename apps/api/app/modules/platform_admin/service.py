@@ -10,6 +10,8 @@ from app.core.security import verify_password, hash_password, generate_password_
 from app.modules.identity.models import Organization, User, AuditLog
 from app.modules.billing.models import Subscription, SubscriptionTier
 from app.modules.billing.service import check_tier_covers_current_usage, ensure_default_tiers, get_or_create_subscription
+from app.modules.billing.public_store import public_store_state
+from app.modules.catalog.service import get_or_create_settings as get_or_create_catalog_settings
 from app.modules.platform_admin.models import PlatformAdmin, PlatformAdminPasswordResetToken
 from app.modules.platform_admin.security import create_platform_admin_token
 from app.modules.platform_admin import schemas
@@ -188,6 +190,31 @@ async def set_organization_subscription(
     await db.commit()
     await db.refresh(org)
     return await _to_summary(db, org)
+
+
+async def get_public_store_status(db: AsyncSession, org_id: uuid.UUID) -> schemas.PublicStoreStatusOut:
+    await get_organization(db, org_id)  # 404 for an unknown org
+    return schemas.PublicStoreStatusOut(**(await public_store_state(db, org_id)))
+
+
+async def set_public_store_mode(
+    db: AsyncSession, org_id: uuid.UUID, admin_id: uuid.UUID, req: schemas.PublicStoreUpdate,
+) -> schemas.PublicStoreStatusOut:
+    """Follow the package ('package'), force the tenant's public store on ('on') or off ('off'). Only the public
+    storefront is affected - the tenant's own system keeps working. Audited in the shared audit log."""
+    await get_organization(db, org_id)
+    settings = await get_or_create_catalog_settings(db, org_id)
+    before = await public_store_state(db, org_id)
+    settings.public_store_enabled = {"package": None, "on": True, "off": False}[req.mode]
+    await db.flush()
+    after = await public_store_state(db, org_id)
+    await record_admin_action(
+        db, org_id, admin_id, action="organization.public_store_change", entity_type="public_store", entity_id=settings.id,
+        previous_value={"mode": before["mode"], "enabled": before["enabled"]},
+        new_value={"mode": after["mode"], "enabled": after["enabled"], "reason": req.reason},
+    )
+    await db.commit()
+    return schemas.PublicStoreStatusOut(**after)
 
 
 async def dashboard_stats(db: AsyncSession) -> schemas.PlatformDashboardStats:
