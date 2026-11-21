@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { isOwnAppHost } from "@/lib/branding-shared";
 
 /**
- * The installed-app manifest for one farm: GET /app-manifest/staff/{slug} or /app-manifest/shop/{slug}.
+ * The installed-app manifest for one farm: GET /app-manifest/staff/{slug} or /app-manifest/shop/{slug}
+ * (the two route files in app/app-manifest/staff/[orgSlug] and app/app-manifest/shop/[orgSlug] both call this).
  *
  * When a superadmin switched tenant branding on for that surface, the app is named after the farm and (if the farm
  * uploaded a logo) uses icons made from it. Otherwise - branding off, unknown farm, API unreachable - it returns the
@@ -10,17 +12,6 @@ import { NextResponse } from "next/server";
  */
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-const APP_HOSTS = new Set(
-  (process.env.NEXT_PUBLIC_APP_HOSTS ?? "localhost:3000,localhost")
-    .split(",")
-    .map((h) => h.trim())
-    .filter(Boolean),
-);
-
-function isOwnAppHost(host: string): boolean {
-  return APP_HOSTS.has(host) || host.endsWith(".vercel.app");
-}
 
 const PLATFORM_ICONS = [
   { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
@@ -48,9 +39,7 @@ function manifestResponse(body: Record<string, unknown>) {
   });
 }
 
-export async function GET(request: Request, { params }: { params: { surface: string; orgSlug: string } }) {
-  const { surface, orgSlug } = params;
-  if (surface !== "staff" && surface !== "shop") return new NextResponse("Not found", { status: 404 });
+export async function buildManifestResponse(request: Request, surface: "staff" | "shop", orgSlug: string) {
 
   const onCustomDomain = !isOwnAppHost(request.headers.get("host") ?? "");
   const startUrl = surface === "staff" ? "/admin/feedlot#weigh" : onCustomDomain ? "/" : `/shop/${orgSlug}`;
