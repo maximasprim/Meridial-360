@@ -64,6 +64,14 @@ async def public_profile(org_slug: str, db: AsyncSession = Depends(get_db)):
     return await service.get_public_profile(db, org.id)
 
 
+@router.get("/store-status", response_model=schemas.StoreStatusOut)
+async def public_store_status(org_slug: str, db: AsyncSession = Depends(get_db)):
+    """Lightweight 'is the public store on?' check for the web app's shop layout. Always 200 for an existing farm
+    (unlike every other public route, which answers 403 when the store is off), so Next.js can cache it for a few
+    seconds - it only caches successful responses."""
+    return await service.get_store_status(db, org_slug)
+
+
 @router.get("/listings", response_model=list[schemas.PublicListingOut])
 async def public_listings(
     org_slug: str, species: str | None = Query(None), crop_type: str | None = Query(None),

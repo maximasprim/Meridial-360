@@ -50,6 +50,14 @@ class SubscriptionPaymentOut(BaseModel):
 
 
 # ----------------------------------------------------- package management --
+class PublicStoreNoticeOut(BaseModel):
+    """What a tenant is told about its own public store. reason: 'package' (its plan doesn't include it) or 'admin'
+    (switched off by the platform administrator); None when the store is on."""
+    enabled: bool
+    reason: str | None = None
+    package_name: str | None = None
+
+
 class PackageOut(BaseModel):
     """A billing package as a superadmin sees it (includes switched-off packages and how many tenants are on it)."""
     id: uuid.UUID

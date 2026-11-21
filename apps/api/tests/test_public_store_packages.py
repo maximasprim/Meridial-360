@@ -196,3 +196,38 @@ async def test_tenant_token_cannot_reach_package_or_store_routes(client, engine)
     org_id, _, _, tenant_headers = await _setup(client, engine)
     assert (await client.get("/api/v1/platform/billing/packages", headers=tenant_headers)).status_code in (401, 403)
     assert (await client.patch(_store_url(org_id), json={"mode": "off"}, headers=tenant_headers)).status_code in (401, 403)
+
+
+async def test_tenant_is_told_why_its_store_is_off(client, engine):
+    org_id, slug, headers, tenant_headers = await _setup(client, engine)
+    url = "/api/v1/billing/public-store"
+
+    r = await client.get(url, headers=tenant_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["enabled"] is True and r.json()["reason"] is None
+
+    free = await _free_package(client, headers)
+    await client.patch(f"/api/v1/platform/billing/packages/{free['id']}", json={"public_store_included": False}, headers=headers)
+    r = await client.get(url, headers=tenant_headers)
+    assert r.json()["enabled"] is False and r.json()["reason"] == "package"
+
+    await client.patch(_store_url(org_id), json={"mode": "off"}, headers=headers)
+    assert (await client.get(url, headers=tenant_headers)).json()["reason"] == "admin"
+
+    await client.patch(_store_url(org_id), json={"mode": "on"}, headers=headers)
+    r = await client.get(url, headers=tenant_headers)
+    assert r.json()["enabled"] is True and r.json()["reason"] is None
+
+    assert (await client.get(url)).status_code in (401, 403)  # needs a signed-in tenant user
+
+
+async def test_store_status_endpoint_is_public_and_always_200(client, engine):
+    org_id, slug, headers, _ = await _setup(client, engine)
+    r = await client.get(f"/api/v1/public/{slug}/store-status")
+    assert r.status_code == 200 and r.json() == {"enabled": True}
+
+    await client.patch(_store_url(org_id), json={"mode": "off"}, headers=headers)
+    r = await client.get(f"/api/v1/public/{slug}/store-status")
+    assert r.status_code == 200 and r.json() == {"enabled": False}  # 200, not the 403 other public routes give
+
+    assert (await client.get("/api/v1/public/no-such-farm/store-status")).status_code == 404

@@ -35,6 +35,12 @@ async def get_org_by_slug(db: AsyncSession, org_slug: str, *, require_store: boo
     return org
 
 
+async def get_store_status(db: AsyncSession, org_slug: str) -> schemas.StoreStatusOut:
+    """404 only for an unknown farm; otherwise 200 with enabled true/false (never the store-unavailable 403)."""
+    org = await get_org_by_slug(db, org_slug, require_store=False)
+    return schemas.StoreStatusOut(enabled=await is_public_store_enabled(db, org.id))
+
+
 def _image_refs(refs: list[ImageRef] | None) -> list[schemas.PublicListingImageOut]:
     return [schemas.PublicListingImageOut(id=r.id, url=r.url, thumb_url=r.thumb_url) for r in (refs or [])]
 

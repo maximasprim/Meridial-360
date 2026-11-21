@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin-shell";
+import { PublicStoreNotice } from "@/components/public-store-notice";
 import { ImageUploadField } from "@/components/image-upload-field";
 import { Card, Button, Input, Textarea, ErrorState, EmptyState } from "@/components/ui";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -17,6 +18,7 @@ export default function CmsPage() {
 
   return (
     <AdminShell>
+      <PublicStoreNotice />
       <div className="mb-6">
         <h1 className="font-display text-2xl text-forest">Site content</h1>
         <p className="text-sm text-muted">What shows on your public storefront - farm story, testimonials, blog, FAQs, banners.</p>
@@ -119,7 +121,6 @@ function ProfileTab() {
           </div>
           {!form.hero_layout && <p className="mt-2 text-xs text-muted">Not chosen yet - your shop uses the platform default.</p>}
         </div>
-
         <Button type="submit" disabled={save.isPending} className="w-full">
           {save.isPending ? "Saving…" : "Save profile"}
         </Button>

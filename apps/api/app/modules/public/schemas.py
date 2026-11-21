@@ -174,3 +174,8 @@ class PublicBannerOut(BaseModel):
 
 class ResolveDomainOut(BaseModel):
     slug: str
+
+
+class StoreStatusOut(BaseModel):
+    """Is this farm's public store switched on? Answered with 200 either way so the web app can cache it."""
+    enabled: bool

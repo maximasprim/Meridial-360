@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.modules.identity.deps import get_tenant_context, require_permission, TenantContext
 from app.modules.identity.models import User
 from app.modules.billing import schemas, service
+from app.modules.billing.public_store import public_store_state
 
 router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 # Unauthenticated on purpose - Safaricom calls this directly, it can't send a
@@ -27,6 +28,17 @@ async def get_my_subscription(
     db: AsyncSession = Depends(get_db),
 ):
     return await service.get_or_create_subscription(db, ctx.organization_id)
+
+
+@router.get("/public-store", response_model=schemas.PublicStoreNoticeOut)
+async def get_my_public_store_status(
+    ctx: TenantContext = Depends(get_tenant_context),
+    db: AsyncSession = Depends(get_db),
+):
+    """Is this organization's public store on, and if not, why (so its admins aren't left guessing)?"""
+    state = await public_store_state(db, ctx.organization_id)
+    reason = None if state["enabled"] else ("admin" if state["mode"] == "off" else "package")
+    return schemas.PublicStoreNoticeOut(enabled=state["enabled"], reason=reason, package_name=state["package_name"])
 
 
 # Starting a paid subscription charges the organization's money, and payment

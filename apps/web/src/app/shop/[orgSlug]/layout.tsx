@@ -8,12 +8,29 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type ProfileResult = {
   profile: PublicFarmProfile | null;
-  /** True when the API says this tenant's public store is switched off (HTTP 403). */
+  /** True when this tenant's public store is switched off. */
   unavailable: boolean;
 };
 
+/** Is the store switched on? A tiny endpoint that answers 200 either way, cached for 15s: Next.js only stores 200
+ * responses, so asking the profile endpoint (which answers 403 when the store is off) would keep serving a stale
+ * "store is on" copy. Anything unexpected (unknown farm, API slow or down) counts as "on" so the page behaves as before. */
+async function getStoreEnabled(orgSlug: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/api/v1/public/${orgSlug}/store-status`, {
+      next: { revalidate: 15 },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return true;
+    return ((await res.json()) as { enabled?: boolean }).enabled !== false;
+  } catch {
+    return true;
+  }
+}
+
 /** Fetched on the server. Cached for 60s, so edits show within a minute. Falls back to null (the page then
- * loads the profile in the browser exactly as it does today) if the API is slow or down. */
+ * loads the profile in the browser exactly as it does today) if the API is slow or down. A 403 here also means the
+ * store is off (covers an older API without the status endpoint). */
 async function getProfile(orgSlug: string): Promise<ProfileResult> {
   try {
     const res = await fetch(`${API}/api/v1/public/${orgSlug}/profile`, {
@@ -27,9 +44,14 @@ async function getProfile(orgSlug: string): Promise<ProfileResult> {
   }
 }
 
+async function load(orgSlug: string): Promise<ProfileResult> {
+  if (!(await getStoreEnabled(orgSlug))) return { profile: null, unavailable: true };
+  return getProfile(orgSlug);
+}
+
 /** Puts the farm's name in the tab title and description in the HTML itself, from the first paint. */
 export async function generateMetadata({ params }: { params: { orgSlug: string } }): Promise<Metadata> {
-  const { profile, unavailable } = await getProfile(params.orgSlug);
+  const { profile, unavailable } = await load(params.orgSlug);
   if (unavailable) return { title: "Store unavailable", robots: { index: false, follow: false } };
   if (!profile) return {};
   return {
@@ -39,7 +61,7 @@ export async function generateMetadata({ params }: { params: { orgSlug: string }
 }
 
 export default async function ShopLayout({ children, params }: { children: ReactNode; params: { orgSlug: string } }) {
-  const { profile, unavailable } = await getProfile(params.orgSlug);
+  const { profile, unavailable } = await load(params.orgSlug);
 
   // A tenant whose public store is switched off (by its package or by a platform admin) shows a plain notice instead of
   // the shop. Its system and data are untouched - only this public front is closed.
