@@ -299,8 +299,14 @@ async def get_animal_qr_profile(db: AsyncSession, org_id: uuid.UUID, animal_id: 
     )
     listing_slug = listing_result.scalar_one_or_none()
 
+    org = await db.get(Organization, org_id)
+    owner_name, logo = await branding.farm_name_and_logo(db, org)
+    store_enabled = await is_public_store_enabled(db, org_id)
+    for_sale = listing_slug is not None and store_enabled  # a switched-off store sells nothing publicly
+
     return schemas.AnimalQRProfileOut(
         animal_number=animal.animal_number, species=animal.species, breed=animal.breed, sex=animal.sex,
         health_status=animal.health_status, farm_name=farm_name,
-        is_for_sale=listing_slug is not None, listing_slug=listing_slug,
+        is_for_sale=for_sale, listing_slug=listing_slug if for_sale else None,
+        organization_name=owner_name, logo_url=logo.logo_url, shop_enabled=store_enabled,
     )

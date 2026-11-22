@@ -71,8 +71,11 @@ class AnimalQRProfileOut(BaseModel):
     sex: str
     health_status: str  # coarse status only - no medical detail, same as PublicListingOut
     farm_name: str
-    is_for_sale: bool
+    is_for_sale: bool  # False while the farm's public store is switched off: nothing is publicly for sale then
     listing_slug: str | None  # set only when is_for_sale - lets a scanner jump straight to the listing page
+    organization_name: str | None = None  # the farm's public name (its profile name, else the organization's)
+    logo_url: str | None = None
+    shop_enabled: bool = True  # is the public store on (so the page may link to it)?
 
 
 class PublicFarmProfileOut(BaseModel):

@@ -284,6 +284,14 @@ async def get_herd_summary(db: AsyncSession, org_id: uuid.UUID, cycle: CycleSel 
     }
 
 
+def animal_tag_url(*, base_url: str, org_slug: str, animal_id: uuid.UUID, custom_domain: str | None, domain_verified: bool) -> str:
+    """Where a scanned animal tag lands: the farm's own domain when it has a VERIFIED one (an unverified claim is never
+    used), otherwise the platform's address. The page itself is /tag/{farm}/{animal} on either."""
+    host = (custom_domain or "").strip().lower()
+    base = f"https://{host}" if host and domain_verified else base_url.rstrip("/")
+    return f"{base}/tag/{org_slug}/{animal_id}"
+
+
 async def get_animal_qr_svg(db: AsyncSession, org_id: uuid.UUID, animal_id: uuid.UUID) -> bytes:
     """Spec §38 - generates a QR code encoding a link to the animal's
     profile. New dependency: qrcode (added to requirements.txt this
@@ -292,14 +300,11 @@ async def get_animal_qr_svg(db: AsyncSession, org_id: uuid.UUID, animal_id: uuid
     specifically (not PNG) so this needs no Pillow/libjpeg in the Docker
     image - qrcode's SvgImage factory renders pure vector paths.
 
-    The link points at `{PUBLIC_SITE_BASE_URL}/animals/{animal_id}` - a
-    frontend route that does not exist in apps/web yet (see
-    docs/architecture.md's Phase 21 note). The backend data it should
-    eventually render is already live at
-    `/api/v1/public/{org_slug}/animals/{animal_id}/qr-profile`
-    (public.service.get_animal_qr_profile); generating the *code* and
-    building the *page* it points to are separable, and only the former is
-    in scope here."""
+    The link points at the public tag page, /tag/{farm}/{animal} (apps/web
+    app/tag/[orgSlug]/[animalId]), on the farm's own verified domain when it
+    has one and on PUBLIC_SITE_BASE_URL otherwise - see animal_tag_url. The page
+    renders `/api/v1/public/{org_slug}/animals/{animal_id}/qr-profile`
+    (public.service.get_animal_qr_profile)."""
     from app.core.config import get_settings
     from app.modules.identity.models import Organization
 
@@ -309,7 +314,10 @@ async def get_animal_qr_svg(db: AsyncSession, org_id: uuid.UUID, animal_id: uuid
     org = org_result.scalar_one()  # org_id is always the authenticated caller's own org
 
     settings = get_settings()
-    url = f"{settings.PUBLIC_SITE_BASE_URL}/{org.slug}/animals/{animal_id}"
+    url = animal_tag_url(
+        base_url=settings.PUBLIC_SITE_BASE_URL, org_slug=org.slug, animal_id=animal_id,
+        custom_domain=org.custom_domain, domain_verified=bool(org.domain_verified),
+    )
 
     import io
     import qrcode

@@ -764,6 +764,9 @@ export interface AnimalQRProfile {
   farm_name: string;
   is_for_sale: boolean;
   listing_slug: string | null;
+  organization_name?: string | null;
+  logo_url?: string | null;
+  shop_enabled?: boolean;
 }
 
 // --- Invoices ---

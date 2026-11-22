@@ -41,6 +41,7 @@ function isOwnAppHost(host: string): boolean {
 function isAlreadyInternalPath(pathname: string): boolean {
   return (
     pathname.startsWith("/shop/") ||
+    pathname.startsWith("/tag/") ||
     pathname.startsWith("/admin") ||
     pathname.startsWith("/platform") ||
     pathname.startsWith("/login") ||
