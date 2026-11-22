@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin-shell";
 import { Card, Button, Input, ErrorState, StatusBadge } from "@/components/ui";
 import { PublicStoreNotice } from "@/components/public-store-notice";
+import { brandingBenefit } from "@/lib/billing-types";
 import { apiDownload, apiFetch, ApiError } from "@/lib/api";
 import type { SubscriptionOut, SubscriptionTierOut, SubscriptionPaymentOut } from "@/lib/billing-types";
 
@@ -85,6 +86,7 @@ export default function BillingPage() {
             <span>{subscription.tier.max_animals ? `${subscription.tier.max_animals} animals` : "Unlimited animals"}</span>
             <span>{subscription.tier.max_crop_plantings ? `${subscription.tier.max_crop_plantings} crop plantings` : "Unlimited crop plantings"}</span>
             <span>{subscription.tier.public_store_included === false ? "No public store" : "Public store included"}</span>
+            <span>{brandingBenefit(subscription.tier)}</span>
             {subscription.current_period_end && (
               <span>Renews {new Date(subscription.current_period_end).toLocaleDateString()}</span>
             )}
@@ -117,6 +119,9 @@ export default function BillingPage() {
               </p>
               <p className={tier.public_store_included === false ? "mt-1 text-xs text-clay" : "mt-1 text-xs text-moss"}>
                 {tier.public_store_included === false ? "Public store not included" : "Public store included"}
+              </p>
+              <p className={tier.staff_branding_included || tier.shop_branding_included ? "mt-1 text-xs text-moss" : "mt-1 text-xs text-clay"}>
+                {brandingBenefit(tier)}
               </p>
               {isCurrent ? (
                 <p className="mt-4 text-center text-xs font-medium text-brass-dark">Current plan</p>
@@ -198,4 +203,3 @@ export default function BillingPage() {
     </AdminShell>
   );
 }
-

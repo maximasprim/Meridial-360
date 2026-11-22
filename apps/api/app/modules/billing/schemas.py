@@ -13,6 +13,8 @@ class SubscriptionTierOut(BaseModel):
     max_animals: int | None
     max_crop_plantings: int | None = None
     public_store_included: bool = True
+    staff_branding_included: bool = False
+    shop_branding_included: bool = False
 
     class Config:
         from_attributes = True
@@ -69,6 +71,8 @@ class PackageOut(BaseModel):
     max_crop_plantings: int | None
     is_active: bool
     public_store_included: bool
+    staff_branding_included: bool
+    shop_branding_included: bool
     organization_count: int
 
 
@@ -82,6 +86,8 @@ class PackageCreate(BaseModel):
     max_crop_plantings: int | None = Field(default=None, ge=1)
     is_active: bool = True
     public_store_included: bool = True
+    staff_branding_included: bool = False
+    shop_branding_included: bool = False
 
 
 class PackageUpdate(BaseModel):
@@ -93,10 +99,12 @@ class PackageUpdate(BaseModel):
     max_crop_plantings: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
     public_store_included: bool | None = None
+    staff_branding_included: bool | None = None
+    shop_branding_included: bool | None = None
 
     @model_validator(mode="after")
     def _required_fields_cannot_be_null(self):
-        for field in ("name", "monthly_price_kes", "is_active", "public_store_included"):
+        for field in ("name", "monthly_price_kes", "is_active", "public_store_included", "staff_branding_included", "shop_branding_included"):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} cannot be null")
         return self

@@ -17,9 +17,11 @@ type Form = {
   maxCrops: string;
   isActive: boolean;
   storeIncluded: boolean;
+  staffBranding: boolean;
+  shopBranding: boolean;
 };
 
-const EMPTY: Form = { name: "", slug: "", price: "0", maxUsers: "", maxAnimals: "", maxCrops: "", isActive: true, storeIncluded: true };
+const EMPTY: Form = { name: "", slug: "", price: "0", maxUsers: "", maxAnimals: "", maxCrops: "", isActive: true, storeIncluded: true, staffBranding: false, shopBranding: false };
 
 const show = (n: number | null) => (n === null ? "Unlimited" : n.toLocaleString());
 const fromLimit = (n: number | null) => (n === null ? "" : String(n));
@@ -41,6 +43,8 @@ function toForm(p: PlatformPackage): Form {
     maxCrops: fromLimit(p.max_crop_plantings),
     isActive: p.is_active,
     storeIncluded: p.public_store_included,
+    staffBranding: p.staff_branding_included,
+    shopBranding: p.shop_branding_included,
   };
 }
 
@@ -107,6 +111,8 @@ export default function PlatformPackagesPage() {
       max_crop_plantings: maxCrops,
       is_active: form.isActive,
       public_store_included: form.storeIncluded,
+      staff_branding_included: form.staffBranding,
+      shop_branding_included: form.shopBranding,
     });
   }
 
@@ -138,6 +144,7 @@ export default function PlatformPackagesPage() {
                 <th className="px-4 py-3 font-medium">Animals</th>
                 <th className="px-4 py-3 font-medium">Crop plantings</th>
                 <th className="px-4 py-3 font-medium">Public store</th>
+                <th className="px-4 py-3 font-medium">Own branding</th>
                 <th className="px-4 py-3 font-medium">Organizations</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 {canWrite && <th className="px-4 py-3" />}
@@ -156,6 +163,15 @@ export default function PlatformPackagesPage() {
                   <td className="px-4 py-3">{show(p.max_crop_plantings)}</td>
                   <td className="px-4 py-3">
                     <span className={p.public_store_included ? "text-moss" : "text-clay"}>{p.public_store_included ? "Included" : "Not included"}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.staff_branding_included || p.shop_branding_included ? (
+                      <span className="text-moss">
+                        {p.staff_branding_included && p.shop_branding_included ? "Staff app + shop" : p.staff_branding_included ? "Staff app" : "Shop"}
+                      </span>
+                    ) : (
+                      <span className="text-clay">Not included</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{p.organization_count}</td>
                   <td className="px-4 py-3">
@@ -214,6 +230,24 @@ export default function PlatformPackagesPage() {
               <span className="font-medium text-ink">Includes the public store</span>
               <span className="block text-xs text-muted">
                 Off = organizations on this package have their system but no public storefront (unless forced on for one organization).
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={form.staffBranding} onChange={(e) => set({ staffBranding: e.target.checked })} />
+            <span>
+              <span className="font-medium text-ink">Includes own branding for the staff app</span>
+              <span className="block text-xs text-muted">
+                On = the installed staff app and the sign-in page show the farm&apos;s own name and logo instead of the platform&apos;s.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={form.shopBranding} onChange={(e) => set({ shopBranding: e.target.checked })} />
+            <span>
+              <span className="font-medium text-ink">Includes own branding for the public shop</span>
+              <span className="block text-xs text-muted">
+                On = the installed shop app shows the farm&apos;s own name and logo. Needs the public store to be included to be useful.
               </span>
             </span>
           </label>

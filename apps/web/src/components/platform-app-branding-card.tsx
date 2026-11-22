@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Card, Button, ErrorState } from "@/components/ui";
 import { platformApiFetch, PlatformApiError } from "@/lib/platform-api";
-import type { AppBrandingStatus } from "@/lib/platform-types";
+import type { AppBrandingStatus, AppBrandingSurface } from "@/lib/platform-types";
 
 type Surface = "staff" | "shop";
+type Mode = AppBrandingSurface["mode"];
 
 const ROWS: { surface: Surface; title: string; text: string }[] = [
   {
@@ -21,10 +22,16 @@ const ROWS: { surface: Surface; title: string; text: string }[] = [
   },
 ];
 
+const CHOICES: { mode: Mode; label: string }[] = [
+  { mode: "package", label: "Follow package" },
+  { mode: "on", label: "Force on" },
+  { mode: "off", label: "Force off" },
+];
+
 /**
- * One organization's app branding (superadmin). For each surface, separately: show the PLATFORM's name and logo
- * (the default) or the FARM's own. Only the name and icon of the installed app, and the sign-in page for staff,
- * change - nothing else about the organization is affected.
+ * One organization's own-branding switch (superadmin), separately for each surface. Own branding is a package benefit:
+ * by default each surface follows what the farm's package includes; a superadmin can force it on or off for this farm.
+ * Only the name and icon of the installed app, and the sign-in page for staff, change - nothing else is affected.
  */
 export function PlatformAppBrandingCard({ orgId, canWrite }: { orgId: string; canWrite: boolean }) {
   const queryClient = useQueryClient();
@@ -35,7 +42,7 @@ export function PlatformAppBrandingCard({ orgId, canWrite }: { orgId: string; ca
   const statusQuery = useQuery<AppBrandingStatus>({ queryKey: key, queryFn: () => platformApiFetch<AppBrandingStatus>(url) });
 
   const save = useMutation({
-    mutationFn: (body: Partial<Record<Surface, boolean>>) =>
+    mutationFn: (body: Partial<Record<Surface, Mode>>) =>
       platformApiFetch<AppBrandingStatus>(url, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: (data) => {
       queryClient.setQueryData(key, data);
@@ -45,47 +52,55 @@ export function PlatformAppBrandingCard({ orgId, canWrite }: { orgId: string; ca
   });
 
   const s = statusQuery.data;
-  const isTenant = (surface: Surface) => (s ? (surface === "staff" ? s.staff_tenant_branding : s.shop_tenant_branding) : false);
+  const pkg = s?.package_name ?? "current";
+
+  const source = (surface: AppBrandingSurface) =>
+    surface.mode === "on"
+      ? "Forced on by a superadmin, whatever the package says."
+      : surface.mode === "off"
+        ? "Forced off by a superadmin, whatever the package says."
+        : `Following the ${pkg} package, which ${surface.package_allows ? "includes" : "does not include"} it.`;
 
   return (
     <Card>
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">App branding</p>
-      {statusQuery.error && <p className="mt-1 text-sm text-clay">Could not load the app branding.</p>}
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">Own branding</p>
+      {statusQuery.error && <p className="mt-1 text-sm text-clay">Could not load the branding settings.</p>}
       {s && (
         <>
           <p className="mt-1 text-sm text-muted">
-            Choose whether each installed app shows the platform&apos;s name and logo, or {s.farm_name ? `“${s.farm_name}”` : "the farm"}&apos;s own.
+            Whether each installed app shows the platform&apos;s name and logo, or {s.farm_name ? `“${s.farm_name}”` : "the farm"}&apos;s own.
+            It follows the farm&apos;s package unless you force it here.
           </p>
-          <div className="mt-4 space-y-4">
-            {ROWS.map((row) => (
-              <div key={row.surface} className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink">{row.title}</p>
-                  <p className="text-xs text-muted">{row.text}</p>
-                  <p className={isTenant(row.surface) ? "mt-1 text-xs font-medium text-moss" : "mt-1 text-xs font-medium text-muted"}>
-                    Showing: {isTenant(row.surface) ? "the farm's own name and logo" : "the platform's name and logo"}
-                  </p>
-                </div>
-                {canWrite && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant={!isTenant(row.surface) ? "primary" : "ghost"}
-                      disabled={save.isPending || !isTenant(row.surface)}
-                      onClick={() => save.mutate({ [row.surface]: false })}
-                    >
-                      Platform
-                    </Button>
-                    <Button
-                      variant={isTenant(row.surface) ? "primary" : "ghost"}
-                      disabled={save.isPending || isTenant(row.surface)}
-                      onClick={() => save.mutate({ [row.surface]: true })}
-                    >
-                      Farm&apos;s own
-                    </Button>
+          <div className="mt-4 space-y-5">
+            {ROWS.map((row) => {
+              const surface = s[row.surface];
+              return (
+                <div key={row.surface} className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">{row.title}</p>
+                    <p className="text-xs text-muted">{row.text}</p>
+                    <p className={surface.enabled ? "mt-1 text-xs font-medium text-moss" : "mt-1 text-xs font-medium text-muted"}>
+                      Showing: {surface.enabled ? "the farm's own name and logo" : "the platform's name and logo"}
+                    </p>
+                    <p className="text-xs text-muted">{source(surface)}</p>
                   </div>
-                )}
-              </div>
-            ))}
+                  {canWrite && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {CHOICES.map((c) => (
+                        <Button
+                          key={c.mode}
+                          variant={surface.mode === c.mode ? "primary" : "ghost"}
+                          disabled={save.isPending || surface.mode === c.mode}
+                          onClick={() => save.mutate({ [row.surface]: c.mode })}
+                        >
+                          {c.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {!s.has_icon && (
             <p className="mt-4 text-xs text-muted">

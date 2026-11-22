@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Numeric, Boolean, Integer, DateTime, ForeignKey, UniqueConstraint, true
+from sqlalchemy import String, Numeric, Boolean, Integer, DateTime, ForeignKey, UniqueConstraint, false, true
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,6 +27,10 @@ class SubscriptionTier(Base, UUIDPKMixin, TimestampMixin):
     # Does this package include the public store? False = tenants on it have no public storefront (a superadmin can still
     # override per tenant, see TenantCatalogSettings.public_store_enabled). Defaults True: nothing changes until edited.
     public_store_included: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Does this package include the farm's OWN name and logo on the installed staff app + sign-in page / on the installed
+    # public shop? Both default False: nothing is included until a superadmin ticks it (a farm can still be overridden).
+    staff_branding_included: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    shop_branding_included: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
 
 class Subscription(Base, UUIDPKMixin, TimestampMixin):

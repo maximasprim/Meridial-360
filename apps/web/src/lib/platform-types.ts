@@ -117,6 +117,8 @@ export interface PlatformPackage {
   max_crop_plantings: number | null;
   is_active: boolean;
   public_store_included: boolean;
+  staff_branding_included: boolean;
+  shop_branding_included: boolean;
   organization_count: number;
 }
 
@@ -128,9 +130,17 @@ export interface PublicStoreStatus {
   package_name: string | null;
 }
 
+export interface AppBrandingSurface {
+  mode: "package" | "on" | "off";
+  enabled: boolean;
+  package_allows: boolean;
+}
+
 export interface AppBrandingStatus {
-  staff_tenant_branding: boolean;
-  shop_tenant_branding: boolean;
+  staff: AppBrandingSurface;
+  shop: AppBrandingSurface;
+  package_slug: string | null;
+  package_name: string | null;
   farm_name: string | null;
   has_logo: boolean;
   has_icon: boolean;

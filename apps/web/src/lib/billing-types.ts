@@ -12,6 +12,8 @@ export interface SubscriptionTierOut {
   max_animals: number | null;
   max_crop_plantings?: number | null;
   public_store_included?: boolean;
+  staff_branding_included?: boolean;
+  shop_branding_included?: boolean;
 }
 
 export interface SubscriptionOut {
@@ -38,4 +40,14 @@ export interface PublicStoreNotice {
   enabled: boolean;
   reason: "package" | "admin" | null;
   package_name: string | null;
+}
+
+/** The "own branding" benefit of a plan, as one line for the plan cards. */
+export function brandingBenefit(tier: { staff_branding_included?: boolean; shop_branding_included?: boolean }): string {
+  const staff = tier.staff_branding_included === true;
+  const shop = tier.shop_branding_included === true;
+  if (staff && shop) return "Own branding: staff app and shop";
+  if (staff) return "Own branding: staff app";
+  if (shop) return "Own branding: shop";
+  return "Own branding not included";
 }

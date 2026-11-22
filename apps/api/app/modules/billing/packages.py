@@ -23,6 +23,7 @@ def _out(tier: SubscriptionTier, counts: dict[uuid.UUID, int]) -> schemas.Packag
         id=tier.id, name=tier.name, slug=tier.slug, monthly_price_kes=float(tier.monthly_price_kes),
         max_users=tier.max_users, max_animals=tier.max_animals, max_crop_plantings=tier.max_crop_plantings,
         is_active=tier.is_active, public_store_included=tier.public_store_included,
+        staff_branding_included=tier.staff_branding_included, shop_branding_included=tier.shop_branding_included,
         organization_count=counts.get(tier.id, 0),
     )
 
@@ -53,6 +54,7 @@ async def create_package(db: AsyncSession, req: schemas.PackageCreate) -> schema
         slug=slug, name=req.name.strip(), monthly_price_kes=round(req.monthly_price_kes, 2),
         max_users=req.max_users, max_animals=req.max_animals, max_crop_plantings=req.max_crop_plantings,
         is_active=req.is_active, public_store_included=req.public_store_included,
+        staff_branding_included=req.staff_branding_included, shop_branding_included=req.shop_branding_included,
     )
     db.add(tier)
     await db.commit()

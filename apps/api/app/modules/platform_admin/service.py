@@ -220,10 +220,11 @@ async def set_public_store_mode(
 
 async def get_app_branding(db: AsyncSession, org_id: uuid.UUID) -> schemas.AppBrandingOut:
     org = await get_organization(db, org_id)
-    staff, shop = await public_branding.get_flags(db, org_id)
+    state = await public_branding.branding_state(db, org_id)
     name, logo = await public_branding.farm_name_and_logo(db, org)
     return schemas.AppBrandingOut(
-        staff_tenant_branding=staff, shop_tenant_branding=shop, farm_name=name,
+        staff=schemas.AppBrandingSurfaceOut(**state["staff"]), shop=schemas.AppBrandingSurfaceOut(**state["shop"]),
+        package_slug=state["package_slug"], package_name=state["package_name"], farm_name=name,
         has_logo=bool(logo.logo_url), has_icon=logo.image_id is not None,
     )
 
@@ -231,20 +232,22 @@ async def get_app_branding(db: AsyncSession, org_id: uuid.UUID) -> schemas.AppBr
 async def set_app_branding(
     db: AsyncSession, org_id: uuid.UUID, admin_id: uuid.UUID, req: schemas.AppBrandingUpdate,
 ) -> schemas.AppBrandingOut:
-    """Choose, separately for the staff app and the public shop, whether the installed app (and for staff the sign-in
-    page) shows the platform's identity or the farm's own. Audited in the shared audit log."""
+    """Per surface (staff app / public shop): follow the billing package ('package'), or force the farm's own name and
+    logo on ('on') or off ('off'). Audited in the shared audit log."""
     await get_organization(db, org_id)
-    before = await public_branding.get_flags(db, org_id)
+    before = await public_branding.branding_state(db, org_id)
     settings = await get_or_create_catalog_settings(db, org_id)
+    values = {"package": None, "on": True, "off": False}
     if req.staff is not None:
-        settings.staff_branding_tenant = req.staff
+        settings.staff_branding_tenant = values[req.staff]
     if req.shop is not None:
-        settings.shop_branding_tenant = req.shop
+        settings.shop_branding_tenant = values[req.shop]
     await db.flush()
-    after = await public_branding.get_flags(db, org_id)
+    after = await public_branding.branding_state(db, org_id)
     await record_admin_action(
         db, org_id, admin_id, action="organization.app_branding_change", entity_type="app_branding", entity_id=settings.id,
-        previous_value={"staff": before[0], "shop": before[1]}, new_value={"staff": after[0], "shop": after[1]},
+        previous_value={"staff": before["staff"]["mode"], "shop": before["shop"]["mode"]},
+        new_value={"staff": after["staff"]["mode"], "shop": after["shop"]["mode"]},
     )
     await db.commit()
     return await get_app_branding(db, org_id)

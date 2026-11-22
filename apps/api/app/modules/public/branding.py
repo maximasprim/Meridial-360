@@ -1,14 +1,17 @@
 """Tenant branding for the installed apps and the sign-in page.
 
-A superadmin decides, per tenant and separately for the STAFF app and the PUBLIC SHOP, whether the installed app
-(name + home-screen icon) and, for staff, the sign-in page show the platform's identity or the farm's own name and
-logo (tenant_catalog_settings.staff_branding_tenant / shop_branding_tenant, both False by default).
+Own branding is a billing-package benefit, like the public store, and is decided separately for the STAFF app (installed
+app name + icon, and the sign-in page) and the PUBLIC SHOP (installed app name + icon):
+  1. a superadmin's per-farm override (tenant_catalog_settings.staff_branding_tenant / shop_branding_tenant):
+     True forces the farm's own name and logo, False forces the platform's, NULL (the default) follows the package;
+  2. otherwise the farm's package (subscription_tiers.staff_branding_included / shop_branding_included, both False until
+     a superadmin ticks them).
 
   * get_branding   - what the web app needs to brand itself. Reveals the farm's name/logo only when at least one of
-                     the two switches is on, so a tenant left on platform branding exposes nothing new here.
+                     the two surfaces is on, so a farm left on platform branding exposes nothing new here.
   * get_app_icon_png - the farm's logo turned into the whole icon family an installed app needs (rounded-square icons at
                      192/256/384/512, full-bleed maskable icons, the iOS home-screen icon and a browser-tab favicon).
-                     Only logos WE stored are used (never an arbitrary pasted URL, so the server never fetches a
+                     Only logos WE stored are used (never an arbitrary pasted URL, so the server never fetches an
                      address a tenant chose); otherwise the web app falls back to the platform icon.
 """
 import asyncio
@@ -22,6 +25,7 @@ from PIL import Image, ImageDraw, ImageOps
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.billing.models import Subscription, SubscriptionTier
 from app.modules.catalog.models import TenantCatalogSettings
 from app.modules.cms.models import FarmProfile, SiteImage
 from app.modules.cms.site_images import get_image_source, image_id_from_url
@@ -55,13 +59,47 @@ class LogoInfo(NamedTuple):
     image_id: uuid.UUID | None  # set only when the logo is an uploaded image we hold (so an icon can be made from it)
 
 
-async def get_flags(db: AsyncSession, org_id: uuid.UUID) -> tuple[bool, bool]:
-    """(staff_branding_tenant, shop_branding_tenant); (False, False) when the tenant was never configured."""
+def _surface(override: bool | None, package_allows: bool) -> dict:
+    mode = "package" if override is None else ("on" if override else "off")
+    return {"mode": mode, "enabled": package_allows if override is None else bool(override), "package_allows": package_allows}
+
+
+async def branding_state(db: AsyncSession, org_id: uuid.UUID) -> dict:
+    """For each surface ('staff', 'shop'): the superadmin's override (mode 'on' / 'off', or 'package' = none), what the
+    farm's billing package says, and the effective result. Read-only, so it is safe on public requests."""
     row = (await db.execute(
-        select(TenantCatalogSettings.staff_branding_tenant, TenantCatalogSettings.shop_branding_tenant)
-        .where(TenantCatalogSettings.organization_id == org_id)
+        select(
+            TenantCatalogSettings.staff_branding_tenant, TenantCatalogSettings.shop_branding_tenant,
+            SubscriptionTier.staff_branding_included, SubscriptionTier.shop_branding_included,
+            SubscriptionTier.slug, SubscriptionTier.name,
+        )
+        .select_from(Organization)
+        .outerjoin(TenantCatalogSettings, TenantCatalogSettings.organization_id == Organization.id)
+        .outerjoin(Subscription, Subscription.organization_id == Organization.id)
+        .outerjoin(SubscriptionTier, SubscriptionTier.id == Subscription.tier_id)
+        .where(Organization.id == org_id)
     )).first()
-    return (bool(row[0]), bool(row[1])) if row else (False, False)
+    staff_override, shop_override = (row[0], row[1]) if row else (None, None)
+    staff_pkg, shop_pkg, slug, name = (row[2], row[3], row[4], row[5]) if row else (None, None, None, None)
+    if staff_pkg is None:
+        # No subscription row yet: such a farm is on the Free package the first time billing is looked at.
+        free = (await db.execute(
+            select(SubscriptionTier.staff_branding_included, SubscriptionTier.shop_branding_included, SubscriptionTier.slug, SubscriptionTier.name)
+            .where(SubscriptionTier.slug == "free")
+        )).first()
+        staff_pkg, shop_pkg, slug, name = free if free else (False, False, None, None)
+    return {
+        "staff": _surface(staff_override, bool(staff_pkg)),
+        "shop": _surface(shop_override, bool(shop_pkg)),
+        "package_slug": slug,
+        "package_name": name,
+    }
+
+
+async def get_flags(db: AsyncSession, org_id: uuid.UUID) -> tuple[bool, bool]:
+    """(staff branding on, shop branding on) for this farm: the superadmin's override if there is one, else its package."""
+    state = await branding_state(db, org_id)
+    return state["staff"]["enabled"], state["shop"]["enabled"]
 
 
 async def farm_name_and_logo(db: AsyncSession, org: Organization) -> tuple[str, LogoInfo]:

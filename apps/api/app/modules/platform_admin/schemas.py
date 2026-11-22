@@ -127,17 +127,27 @@ class PublicStoreUpdate(BaseModel):
     reason: str | None = Field(default=None, max_length=300)
 
 
+class AppBrandingSurfaceOut(BaseModel):
+    """One surface (staff app or public shop). mode: 'package' (follow the billing package), 'on' or 'off' (a superadmin
+    override). package_allows: what the package alone says. enabled: the effective result."""
+    mode: Literal["package", "on", "off"]
+    enabled: bool
+    package_allows: bool
+
+
 class AppBrandingOut(BaseModel):
     """Whether the staff app (installed app + sign-in page) and the public shop (installed app) present the farm's own
-    name and logo (True) or the platform's (False). has_icon: an uploaded logo exists to build installed-app icons from."""
-    staff_tenant_branding: bool
-    shop_tenant_branding: bool
+    name and logo, and why. has_icon: an uploaded logo exists to build installed-app icons from."""
+    staff: AppBrandingSurfaceOut
+    shop: AppBrandingSurfaceOut
+    package_slug: str | None = None
+    package_name: str | None = None
     farm_name: str | None = None
     has_logo: bool = False
     has_icon: bool = False
 
 
 class AppBrandingUpdate(BaseModel):
-    """Omitted = unchanged."""
-    staff: bool | None = None
-    shop: bool | None = None
+    """Omitted = unchanged. 'package' hands the decision back to the farm's billing package."""
+    staff: Literal["package", "on", "off"] | None = None
+    shop: Literal["package", "on", "off"] | None = None
