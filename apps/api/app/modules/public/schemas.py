@@ -76,6 +76,10 @@ class AnimalQRProfileOut(BaseModel):
     organization_name: str | None = None  # the farm's public name (its profile name, else the organization's)
     logo_url: str | None = None
     shop_enabled: bool = True  # is the public store on (so the page may link to it)?
+    # Optional extras, each shown only when the farm allows it (Site content -> Profile) and the animal has it.
+    photo_url: str | None = None  # API path, relative to the API address; ?v= changes when the photo is replaced
+    current_weight: Decimal | None = None  # kg
+    date_of_birth: date | None = None
 
 
 class PublicFarmProfileOut(BaseModel):

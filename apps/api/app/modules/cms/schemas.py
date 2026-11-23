@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class FarmProfileUpdate(BaseModel):
@@ -17,6 +17,17 @@ class FarmProfileUpdate(BaseModel):
     website: str | None = None
     established_year: int | None = None
     hero_layout: Literal["classic", "focus"] | None = None
+    tag_show_photo: bool | None = None
+    tag_show_weight: bool | None = None
+    tag_show_birth_date: bool | None = None
+
+    @model_validator(mode="after")
+    def _tag_switches_cannot_be_null(self):
+        for field in ("tag_show_photo", "tag_show_weight", "tag_show_birth_date"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
+
 
 class FarmProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -31,6 +42,9 @@ class FarmProfileOut(BaseModel):
     website: str | None
     established_year: int | None
     hero_layout: str | None = None
+    tag_show_photo: bool = True
+    tag_show_weight: bool = True
+    tag_show_birth_date: bool = True
 
 
 class TestimonialCreate(BaseModel):

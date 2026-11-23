@@ -72,6 +72,15 @@ async def public_store_status(org_slug: str, db: AsyncSession = Depends(get_db))
     return await service.get_store_status(db, org_slug)
 
 
+@router.get("/animals/{animal_id}/photo")
+async def public_animal_photo(org_slug: str, animal_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """The animal's photo for its public tag page (404 unless the farm allows it). Not part of the store, so it answers
+    even while the public store is off."""
+    org = await service.get_org_by_slug(db, org_slug, require_store=False)
+    data = await service.get_public_animal_photo(db, org, animal_id)
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=300"})
+
+
 @router.get("/branding", response_model=schemas.BrandingOut)
 async def public_branding(org_slug: str, db: AsyncSession = Depends(get_db)):
     """Name / logo for the sign-in page and the installed-app manifests, when a superadmin switched tenant branding

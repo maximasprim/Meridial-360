@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import String, Text, Integer, Boolean, Date, DateTime, ForeignKey, LargeBinary
+from sqlalchemy import String, Text, Integer, Boolean, Date, DateTime, ForeignKey, LargeBinary, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +28,10 @@ class FarmProfile(Base, UUIDPKMixin, TimestampMixin):
     website: Mapped[str | None] = mapped_column(String(255), nullable=True)
     established_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hero_layout: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 'classic' | 'focus' | None = platform default
+    # What the public animal tag page (scanned QR) may show besides the basics; each can be switched off by the farm.
+    tag_show_photo: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    tag_show_weight: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    tag_show_birth_date: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Testimonial(Base, UUIDPKMixin, TimestampMixin):

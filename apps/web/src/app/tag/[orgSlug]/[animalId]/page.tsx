@@ -25,6 +25,14 @@ async function getProfile({ orgSlug, animalId }: Params["params"]): Promise<Anim
   }
 }
 
+const formatDate = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+const formatWeight = (value: string | number) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 1 }) : String(value);
+};
+
 const label = (value: string) => {
   const text = value.replace(/_/g, " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -58,6 +66,8 @@ export default async function AnimalTagPage({ params }: Params) {
     ["Species", label(profile.species)],
     ["Breed", profile.breed ? label(profile.breed) : "-"],
     ["Sex", label(profile.sex)],
+    ...(profile.date_of_birth ? [["Date of birth", formatDate(profile.date_of_birth)] as [string, string]] : []),
+    ...(profile.current_weight != null ? [["Weight", `${formatWeight(profile.current_weight)} kg`] as [string, string]] : []),
     ["Health", label(profile.health_status)],
   ];
 
@@ -78,6 +88,14 @@ export default async function AnimalTagPage({ params }: Params) {
         </div>
 
         <div className="rounded-lg border border-hairline bg-white/70 p-6">
+          {profile.photo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc(profile.photo_url)}
+              alt={`Photo of ${profile.animal_number}`}
+              className="mb-4 aspect-[4/3] w-full rounded object-cover"
+            />
+          )}
           <p className="text-xs font-medium uppercase tracking-wider text-muted">Animal</p>
           <p className="font-display text-2xl text-ink">{profile.animal_number}</p>
 

@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.identity.models import Organization
@@ -15,6 +15,8 @@ from app.modules.commerce.service import (
     get_available_crop_quantity,
 )
 from app.modules.livestock.models import Animal
+from app.modules.livestock.photo import AnimalPhoto
+from app.modules.cms.models import FarmProfile
 from app.modules.crops.models import CropPlanting
 from app.modules.farm.models import Farm
 from app.modules.customers.service import find_or_create_by_contact
@@ -304,9 +306,45 @@ async def get_animal_qr_profile(db: AsyncSession, org_id: uuid.UUID, animal_id: 
     store_enabled = await is_public_store_enabled(db, org_id)
     for_sale = listing_slug is not None and store_enabled  # a switched-off store sells nothing publicly
 
+    show_photo, show_weight, show_birth = await _tag_switches(db, org_id)
+    photo_url = None
+    if show_photo:
+        version = (await db.execute(
+            select(func.substr(func.md5(AnimalPhoto.data), 1, 8))
+            .where(AnimalPhoto.animal_id == animal_id, AnimalPhoto.organization_id == org_id)
+        )).scalar_one_or_none()
+        if version:
+            photo_url = f"/api/v1/public/{org.slug}/animals/{animal_id}/photo?v={version}"
+
     return schemas.AnimalQRProfileOut(
         animal_number=animal.animal_number, species=animal.species, breed=animal.breed, sex=animal.sex,
         health_status=animal.health_status, farm_name=farm_name,
         is_for_sale=for_sale, listing_slug=listing_slug if for_sale else None,
         organization_name=owner_name, logo_url=logo.logo_url, shop_enabled=store_enabled,
+        photo_url=photo_url,
+        current_weight=animal.current_weight if show_weight else None,
+        date_of_birth=animal.date_of_birth if show_birth else None,
     )
+
+
+async def _tag_switches(db: AsyncSession, org_id: uuid.UUID) -> tuple[bool, bool, bool]:
+    """(photo, weight, date of birth) - what the farm allows its public animal tag page to show. All on if the farm never
+    saved a profile. Read-only."""
+    row = (await db.execute(
+        select(FarmProfile.tag_show_photo, FarmProfile.tag_show_weight, FarmProfile.tag_show_birth_date)
+        .where(FarmProfile.organization_id == org_id)
+    )).first()
+    return (bool(row[0]), bool(row[1]), bool(row[2])) if row else (True, True, True)
+
+
+async def get_public_animal_photo(db: AsyncSession, org: Organization, animal_id: uuid.UUID) -> bytes:
+    """The animal's profile photo for the public tag page. 404 unless the farm allows it and the animal belongs to this farm."""
+    show_photo, _, _ = await _tag_switches(db, org.id)
+    data = None
+    if show_photo:
+        data = (await db.execute(
+            select(AnimalPhoto.data).where(AnimalPhoto.animal_id == animal_id, AnimalPhoto.organization_id == org.id)
+        )).scalar_one_or_none()
+    if not data:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No photo")
+    return data

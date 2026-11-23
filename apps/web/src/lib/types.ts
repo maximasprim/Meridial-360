@@ -767,6 +767,9 @@ export interface AnimalQRProfile {
   organization_name?: string | null;
   logo_url?: string | null;
   shop_enabled?: boolean;
+  photo_url?: string | null;
+  current_weight?: string | number | null;
+  date_of_birth?: string | null;
 }
 
 // --- Invoices ---
@@ -832,6 +835,9 @@ export interface FarmProfile {
   website: string | null;
   established_year: number | null;
   hero_layout?: "classic" | "focus" | null;
+  tag_show_photo?: boolean;
+  tag_show_weight?: boolean;
+  tag_show_birth_date?: boolean;
 }
 
 export interface Testimonial {

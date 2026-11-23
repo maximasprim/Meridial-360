@@ -121,6 +121,24 @@ function ProfileTab() {
           </div>
           {!form.hero_layout && <p className="mt-2 text-xs text-muted">Not chosen yet - your shop uses the platform default.</p>}
         </div>
+        <div>
+          <p className="mb-1 text-sm font-medium text-ink">Animal tag page</p>
+          <p className="mb-2 text-xs text-muted">
+            Anyone who scans an animal&apos;s QR tag sees its number, species, breed, sex, health status and availability. Choose what else it shows.
+          </p>
+          <div className="space-y-2">
+            {([
+              ["tag_show_photo", "Show the animal's photo"],
+              ["tag_show_weight", "Show its current weight"],
+              ["tag_show_birth_date", "Show its date of birth"],
+            ] as const).map(([field, text]) => (
+              <label key={field} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form[field] !== false} onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.checked }))} />
+                {text}
+              </label>
+            ))}
+          </div>
+        </div>
         <Button type="submit" disabled={save.isPending} className="w-full">
           {save.isPending ? "Saving…" : "Save profile"}
         </Button>
