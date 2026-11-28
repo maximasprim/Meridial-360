@@ -31,7 +31,7 @@ EXCELLENT_ADG = 1.25       # above this: excellent
 ON_TARGET_ADG = 0.9        # this up to EXCELLENT_ADG: on target
 APPROACHING_ADG = 0.6      # this up to ON_TARGET_ADG: approaching target; below: below target
 NEARLY_READY_DAYS = 14
-RECENT_WINDOW_DAYS = 30    # "recent" gain looks at the last 30 days of weighings
+RECENT_WINDOW_DAYS = 30    # no longer used by recent_adg (it now uses the last two weighings); kept so the thresholds payload is unchanged
 STALE_WEIGH_DAYS = 45      # last weighing older than this is flagged
 ADG_ALERT = 2.0            # a daily gain above +2 or below -2 kg/day between the last two weighings raises an alert
 
@@ -83,15 +83,14 @@ def overall_adg(points: list[tuple[date, float]]) -> float | None:
     return (points[-1][1] - points[0][1]) / days if days > 0 else None
 
 
-def recent_adg(points: list[tuple[date, float]], window_days: int = RECENT_WINDOW_DAYS) -> float | None:
-    """Gain per day over the last `window_days` days of weighings (at least the last two weighings)."""
+def recent_adg(points: list[tuple[date, float]]) -> float | None:
+    """Gain per day between the LAST TWO weighings: (latest weight - previous weight) / days between them.
+    `points` are daily_points() (one weight per day, oldest first), so the two dates always differ."""
     if len(points) < 2:
         return None
-    cutoff = points[-1][0] - timedelta(days=window_days)
-    inside = [p for p in points if p[0] >= cutoff]
-    pts = inside if len(inside) >= 2 else points[-2:]
-    days = (pts[-1][0] - pts[0][0]).days
-    return (pts[-1][1] - pts[0][1]) / days if days > 0 else None
+    (d0, w0), (d1, w1) = points[-2], points[-1]
+    days = (d1 - d0).days
+    return (w1 - w0) / days if days > 0 else None
 
 
 def intervals(points: list[tuple[date, float]]) -> list[dict[str, Any]]:

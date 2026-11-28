@@ -56,7 +56,7 @@ export function AnimalPerformance({ animalId, showLink = false, showTable = true
         <Fact label="Entry weight" value={kg(a.start_kg)} hint={a.start_date ? `on ${fullDate(a.start_date)}` : undefined} />
         <Fact label="Latest weight" value={kg(a.current_kg)} hint={a.last_weighed ? `on ${fullDate(a.last_weighed)}` : undefined} />
         <Fact label="Overall gain so far" value={kg(a.gain_kg)} hint={a.start_kg != null && a.current_kg != null ? "since entry" : undefined} />
-        <Fact label="ADG (overall)" value={adgText(a.overall_adg ?? a.adg)} hint={a.recent_adg != null ? `Recent (30 days): ${a.recent_adg.toFixed(2)} kg/day` : undefined} />
+        <Fact label="ADG (overall)" value={adgText(a.overall_adg ?? a.adg)} hint={a.recent_adg != null ? `Last two weighings: ${a.recent_adg.toFixed(2)} kg/day` : undefined} />
         <Fact label="Days on farm" value={a.days_on_farm != null ? `${a.days_on_farm} ${a.days_on_farm === 1 ? "day" : "days"}` : "-"}
           hint={atLastWeigh != null ? `${atLastWeigh} ${atLastWeigh === 1 ? "day" : "days"} at last weighing` : undefined}
           extra={a.target_days ? (a.days_left != null ? (a.days_left > 0 ? `of ${a.target_days} target · ${a.days_left} left` : `of ${a.target_days} target · used up`) : `of ${a.target_days} target`) : undefined} />

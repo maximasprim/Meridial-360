@@ -25,11 +25,12 @@ def test_one_weight_per_day_last_entry_wins_and_gains_are_per_day():
     assert logic.overall_adg(p[:1]) is None
 
 
-def test_recent_gain_uses_the_last_30_days_not_the_whole_history():
-    p = pts((0, 200), (60, 260), (80, 290))          # slow first, fast lately (1.5/day over the last 20 days)
-    assert round(logic.overall_adg(p), 2) == 1.12
-    assert round(logic.recent_adg(p), 2) == 1.5
-    assert logic.recent_adg(pts((0, 200), (90, 290))) == 1.0      # only two far-apart weighings: use them
+def test_recent_gain_is_between_the_last_two_weighings():
+    p = pts((0, 300), (2, 320), (15, 350), (28, 360))
+    assert round(logic.recent_adg(p), 3) == 0.769      # (360 - 350) / 13, not (360 - 320) / 26
+    assert round(logic.recent_adg(pts((0, 200), (60, 260), (80, 290))), 2) == 1.5
+    assert logic.recent_adg(pts((0, 200), (90, 290))) == 1.0
+    assert logic.recent_adg(pts((0, 200))) is None
 
 
 def test_ready_nearly_ready_growing_stalled_and_no_target():

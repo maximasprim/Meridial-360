@@ -161,7 +161,7 @@ function Readiness({ data }: { data: WeightsOverview }) {
         )}
         <p className="mt-4 text-xs text-muted">
           Daily gain: above {data.thresholds.excellent_above} kg/day is excellent, {data.thresholds.on_target_from}–{data.thresholds.excellent_above} is on target, {data.thresholds.approaching_from}–{data.thresholds.on_target_from} is approaching target, below {data.thresholds.approaching_from} is below target.
-          “Nearly ready” means the recent gain (last {data.thresholds.recent_window_days} days) reaches the target within {data.thresholds.nearly_ready_days} days. Animals that are not healthy are shown but held back from alerts.
+          “Nearly ready” means the recent gain (between the last two weighings) reaches the target within {data.thresholds.nearly_ready_days} days.
         </p>
       </Card>
 
